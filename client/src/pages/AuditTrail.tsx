@@ -81,7 +81,7 @@ export const AuditTrail: React.FC<AuditTrailProps> = ({ onInspectOrder }) => {
       },
       {
         field: 'action',
-        headerName: 'Security Action',
+        headerName: 'Event Type',
         flex: 1.2,
         minWidth: 165,
         cellRenderer: (p: any) => {
@@ -89,22 +89,23 @@ export const AuditTrail: React.FC<AuditTrailProps> = ({ onInspectOrder }) => {
           const getBadge = () => {
             switch (action) {
               case 'PAYMENT_CAPTURED':
-                return 'bg-[#06281e] text-[#34d399] border-[#065f46]';
+                return { label: 'Payment Paid', cls: 'bg-[#06281e] text-[#34d399] border-[#065f46]' };
               case 'PAYMENT_BLOCKED':
-                return 'bg-[#2d0b12] text-[#f87171] border-[#7f1d1d]';
+                return { label: 'Payment Blocked', cls: 'bg-[#2d0b12] text-[#f87171] border-[#7f1d1d]' };
               case 'MERCHANT_OVERRIDE':
-                return 'bg-[#1e1338] text-[#c084fc] border-[#581c87]';
+                return { label: 'Manual Override', cls: 'bg-[#1e1338] text-[#c084fc] border-[#581c87]' };
               case 'RISK_ASSESSED':
-                return 'bg-[#08222b] text-[#22d3ee] border-[#0e7490]';
+                return { label: 'Risk Evaluated', cls: 'bg-[#08222b] text-[#22d3ee] border-[#0e7490]' };
               default:
-                return 'bg-[#10172a] text-slate-300 border-[#1e293b]';
+                return { label: action, cls: 'bg-[#10172a] text-slate-300 border-[#1e293b]' };
             }
           };
 
+          const badge = getBadge();
           return (
             <div className="flex items-center h-full">
-              <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-semibold border ${getBadge()}`}>
-                {action}
+              <span className={`px-2 py-0.5 rounded text-[11px] font-medium border ${badge.cls}`}>
+                {badge.label}
               </span>
             </div>
           );
@@ -149,15 +150,15 @@ export const AuditTrail: React.FC<AuditTrailProps> = ({ onInspectOrder }) => {
         <div>
           <div className="flex items-center gap-2.5">
             <h1 className="text-xl font-bold text-slate-100 tracking-tight">
-              Tamper-Evident Security Audit Trail
+              Activity & Audit Log
             </h1>
-            <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-[#060911] text-cyan-400 border border-[#1e293b] font-semibold flex items-center gap-1">
+            <span className="text-[10px] uppercase px-2 py-0.5 rounded bg-[#060911] text-cyan-400 border border-[#1e293b] font-medium flex items-center gap-1">
               <Database className="w-2.5 h-2.5 text-cyan-400" />
-              <span>SQLite Immutable Log</span>
+              <span>Immutable Record</span>
             </span>
           </div>
           <p className="text-xs text-slate-400 mt-1">
-            Persisted history of risk evaluations, PayPal order creations, captures, and merchant overrides.
+            Persisted history of risk assessments, PayPal authorizations, captures, and merchant overrides.
           </p>
         </div>
 
@@ -167,7 +168,7 @@ export const AuditTrail: React.FC<AuditTrailProps> = ({ onInspectOrder }) => {
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#10172a] hover:bg-[#1e293b] text-slate-300 hover:text-white border border-[#1e293b] text-xs font-mono self-start sm:self-auto transition-colors"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-          <span>Refresh Audit Logs</span>
+          <span>Refresh Activity</span>
         </button>
       </div>
 

@@ -3,12 +3,14 @@ import {
   ArrowLeft, 
   AlertTriangle, 
   CheckCircle, 
-  XCircle, 
-  User, 
-  Cpu, 
-  RefreshCw
+  ShieldAlert,
+  ShieldCheck,
+  ChevronDown,
+  ChevronUp,
+  RefreshCw,
+  Cpu,
+  User
 } from 'lucide-react';
-import { EvidenceCard } from '../components/EvidenceCard.js';
 import { CounterfactualBox } from '../components/CounterfactualBox.js';
 import { RiskBadge } from '../components/RiskBadge.js';
 import type { TransactionData, RiskAssessment, MLPredictionResult, AuditRecord } from '../types/index.js';
@@ -33,6 +35,7 @@ export const Investigation: React.FC<InvestigationProps> = ({ orderId, onBack, o
   const [overrideNotes, setOverrideNotes] = useState('');
   const [actionMsg, setActionMsg] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showTechnicalDetails, setShowTechnicalDetails] = useState(false);
 
   useEffect(() => {
     loadOrderDetails();
@@ -58,13 +61,13 @@ export const Investigation: React.FC<InvestigationProps> = ({ orderId, onBack, o
   const handleOverride = async (action: 'ALLOW' | 'BLOCK') => {
     setIsSubmitting(true);
     try {
-      await api.overrideTransaction(orderId, action, overrideNotes || `Merchant manual decision override: set to ${action}`);
-      setActionMsg(`Transaction status successfully updated to ${action === 'ALLOW' ? 'PENDING' : 'BLOCKED'}. Logged in Audit Trail.`);
+      await api.overrideTransaction(orderId, action, overrideNotes || `Merchant decision: ${action === 'ALLOW' ? 'Approved' : 'Blocked'}`);
+      setActionMsg(`Transaction decision updated to ${action === 'ALLOW' ? 'Approved (Safe)' : 'Blocked'}. Action saved in Activity log.`);
       setOverrideNotes('');
       await loadOrderDetails();
       await onRefreshList();
     } catch (err: any) {
-      setActionMsg(`Override error: ${err.message}`);
+      setActionMsg(`Error: ${err.message}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -74,7 +77,7 @@ export const Investigation: React.FC<InvestigationProps> = ({ orderId, onBack, o
     return (
       <div className="flex flex-col items-center justify-center p-20 text-slate-400">
         <div className="w-8 h-8 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin mb-3"></div>
-        <p className="text-xs font-mono">Analyzing risk evidence and telemetry vectors for {orderId}...</p>
+        <p className="text-xs font-mono">Analyzing transaction {orderId}...</p>
       </div>
     );
   }
@@ -83,8 +86,8 @@ export const Investigation: React.FC<InvestigationProps> = ({ orderId, onBack, o
     return (
       <div className="p-8 text-center bg-[#0a0f1d] border border-[#1e293b] rounded-xl max-w-lg mx-auto">
         <AlertTriangle className="w-8 h-8 text-[#f87171] mx-auto mb-2" />
-        <h3 className="text-sm font-bold text-white">Investigation Record Not Found</h3>
-        <p className="text-xs text-slate-400 mt-1">{error || 'Transaction ID does not exist in the database.'}</p>
+        <h3 className="text-sm font-bold text-white">Transaction Not Found</h3>
+        <p className="text-xs text-slate-400 mt-1">{error || 'This order does not exist in the database.'}</p>
         <button
           onClick={onBack}
           className="mt-4 px-4 py-1.5 rounded-lg bg-[#10172a] hover:bg-[#172036] text-xs text-slate-200 border border-[#1e293b] transition-colors"
@@ -97,451 +100,372 @@ export const Investigation: React.FC<InvestigationProps> = ({ orderId, onBack, o
 
   const { transaction: tx, assessment, mlPrediction } = data;
 
+  // Signal plain English helper
+  const getSignalPlainEnglish = (sig: any) => {
+    return {
+      title: sig.name || sig.observedFact || 'Detected Anomaly',
+      meaning: sig.inferenceReason || 'This telemetry signal deviates from standard customer purchase patterns.',
+    };
+  };
+
+  // Recommendation details
+  const getRecommendationContent = () => {
+    if (assessment.tier === 'BLOCK') {
+      return {
+        actionLabel: 'Hold Checkout',
+        badgeClass: 'bg-[#2d0b12] text-[#f87171] border-[#7f1d1d]',
+        headline: 'Do not capture payment without verification.',
+        summary: 'Multiple high-risk indicators were detected on this order, including masked network routing and rapid attempt velocity. Capturing this payment presents a strong risk of an unauthorized transaction or chargeback.',
+        nextStep: 'Contact the buyer to verify authorization or hold fulfillment. If you cannot confirm buyer identity, keep this transaction blocked.',
+      };
+    }
+    if (assessment.tier === 'REVIEW') {
+      return {
+        actionLabel: 'Review Manually',
+        badgeClass: 'bg-[#2e1c07] text-[#fbbf24] border-[#78350f]',
+        headline: 'Verify buyer details before shipping.',
+        summary: 'Moderate anomalies were observed, such as a country discrepancy or a newly created account. The risk is not severe enough to immediately reject, but requires a quick merchant review.',
+        nextStep: 'Confirm the shipping address with the customer via email or phone. If the information checks out, approve the payment below.',
+      };
+    }
+    return {
+      actionLabel: 'Proceed',
+      badgeClass: 'bg-[#06281e] text-[#34d399] border-[#065f46]',
+      headline: 'Safe to capture and fulfill.',
+      summary: 'This transaction passed all pre-capture checks. The buyer network, billing location, and device fingerprints align with standard legitimate customer behavior.',
+      nextStep: 'No action required. You can safely proceed with order fulfillment.',
+    };
+  };
+
+  const rec = getRecommendationContent();
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-5xl mx-auto">
       
-      {/* Navigation & Header */}
+      {/* Back button & top bar */}
       <div className="flex items-center justify-between pb-3 border-b border-[#1e293b]">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={onBack}
-            className="p-1.5 rounded-lg bg-[#0a0f1d] hover:bg-[#10172a] border border-[#1e293b] text-slate-400 hover:text-white transition-colors"
-            title="Back to Dashboard Grid"
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </button>
-          <div>
-            <div className="flex items-center gap-2.5">
-              <h1 className="text-lg font-bold font-mono text-slate-100 tracking-tight">
-                Investigation: {tx.orderId}
-              </h1>
-              <RiskBadge tier={assessment.tier} score={assessment.overallScore} size="md" />
-            </div>
-            <p className="text-[11px] text-slate-400 mt-0.5">
-              Evaluated {new Date(assessment.assessedAt).toLocaleString()} • Engine {assessment.policyVersion}
-            </p>
-          </div>
-        </div>
+        <button
+          onClick={onBack}
+          className="flex items-center gap-2 text-xs text-slate-400 hover:text-slate-100 transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Back to Dashboard</span>
+        </button>
 
         <button
           onClick={loadOrderDetails}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0a0f1d] hover:bg-[#10172a] text-slate-300 border border-[#1e293b] text-xs font-mono transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0a0f1d] hover:bg-[#10172a] text-slate-300 border border-[#1e293b] text-xs transition-colors"
         >
           <RefreshCw className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">Refresh Investigation</span>
+          <span>Refresh</span>
         </button>
       </div>
 
       {actionMsg && (
-        <div className="p-3 rounded-lg bg-[#0a0f1d] border border-cyan-800/80 text-xs text-cyan-200 font-mono flex items-center justify-between">
+        <div className="p-3.5 rounded-xl bg-[#0a0f1d] border border-cyan-800 text-xs text-cyan-200 flex items-center justify-between">
           <span>{actionMsg}</span>
           <button onClick={() => setActionMsg(null)} className="text-slate-400 hover:text-white">✕</button>
         </div>
       )}
 
       {/* ======================================================== */}
-      {/* SECTION A: TRANSACTION OVERVIEW                         */}
+      {/* SECTION A: ORDER SUMMARY                                */}
       {/* ======================================================== */}
-      <div className="rounded-xl bg-[#0a0f1d] border border-[#1e293b] p-4 sm:p-5">
+      <div className="rounded-xl bg-[#0a0f1d] border border-[#1e293b] p-5">
         <div className="flex items-center justify-between pb-3 mb-4 border-b border-[#1e293b]">
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-mono uppercase tracking-wider text-cyan-400 font-semibold">
-              Section A
-            </span>
-            <span className="text-slate-400">/</span>
-            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-200">
-              Transaction Overview & Gateway State
-            </h2>
-          </div>
-          <span className="text-[11px] font-mono text-slate-400">
-            Recorded {new Date(tx.createdAt).toLocaleTimeString()}
+          <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
+            Order Summary
+          </span>
+          <span className="text-xs text-slate-400 font-mono">
+            {new Date(tx.createdAt).toLocaleString()}
           </span>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
-          
-          {/* Order ID */}
-          <div className="p-3 rounded-lg bg-[#060911] border border-[#1e293b]">
-            <span className="text-[10px] uppercase font-mono text-slate-400 block mb-0.5">Order Ref</span>
-            <span className="text-xs font-bold font-mono text-slate-100">{tx.orderId}</span>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div>
+            <span className="text-[11px] text-slate-400 block mb-0.5">Order ID</span>
+            <span className="text-sm font-bold font-mono text-slate-100">{tx.orderId}</span>
           </div>
 
-          {/* Amount & Currency */}
-          <div className="p-3 rounded-lg bg-[#060911] border border-[#1e293b]">
-            <span className="text-[10px] uppercase font-mono text-slate-400 block mb-0.5">Order Amount</span>
-            <span className="text-xs font-bold font-mono text-slate-100">
-              ${tx.amount.toFixed(2)} <span className="text-[10px] text-slate-400 font-normal">{tx.currency}</span>
+          <div>
+            <span className="text-[11px] text-slate-400 block mb-0.5">Amount</span>
+            <span className="text-sm font-bold font-mono text-slate-100">
+              ${tx.amount.toFixed(2)} <span className="text-xs font-normal text-slate-400">{tx.currency}</span>
             </span>
           </div>
 
-          {/* Risk Score */}
-          <div className="p-3 rounded-lg bg-[#060911] border border-[#1e293b]">
-            <span className="text-[10px] uppercase font-mono text-slate-400 block mb-0.5">Risk Score</span>
-            <span className="text-xs font-bold font-mono text-cyan-400">
-              {assessment.overallScore} <span className="text-[10px] text-slate-400 font-normal">/ 100</span>
-            </span>
+          <div>
+            <span className="text-[11px] text-slate-400 block mb-0.5">Risk Level</span>
+            <RiskBadge tier={assessment.tier} score={assessment.overallScore} size="sm" />
           </div>
 
-          {/* Risk Category */}
-          <div className="p-3 rounded-lg bg-[#060911] border border-[#1e293b]">
-            <span className="text-[10px] uppercase font-mono text-slate-400 block mb-0.5">Risk Category</span>
-            <RiskBadge tier={assessment.tier} size="sm" />
-          </div>
-
-          {/* Investigation Status */}
-          <div className="p-3 rounded-lg bg-[#060911] border border-[#1e293b]">
-            <span className="text-[10px] uppercase font-mono text-slate-400 block mb-0.5">Investigation Status</span>
-            <span className="text-[11px] font-medium text-slate-200">
-              {tx.paymentStatus === 'BLOCKED' ? 'Halted by Policy' : tx.paymentStatus === 'CAPTURED' ? 'Capture Cleared' : 'Requires Review'}
-            </span>
-          </div>
-
-          {/* PayPal Gateway Status */}
-          <div className="p-3 rounded-lg bg-[#060911] border border-[#1e293b]">
-            <span className="text-[10px] uppercase font-mono text-slate-400 block mb-0.5">PayPal Status</span>
-            <span className={`inline-block px-1.5 py-0.2 rounded text-[10px] font-mono font-bold border ${
+          <div>
+            <span className="text-[11px] text-slate-400 block mb-0.5">Payment Status</span>
+            <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium border ${
               tx.paymentStatus === 'CAPTURED'
                 ? 'bg-[#06281e] text-[#34d399] border-[#065f46]'
                 : tx.paymentStatus === 'BLOCKED'
                 ? 'bg-[#2d0b12] text-[#f87171] border-[#7f1d1d]'
                 : 'bg-[#2e1c07] text-[#fbbf24] border-[#78350f]'
             }`}>
-              {tx.paymentStatus}
+              {tx.paymentStatus === 'CAPTURED' ? 'Paid' : tx.paymentStatus === 'BLOCKED' ? 'Blocked' : 'Pending'}
             </span>
           </div>
-
         </div>
 
-        {/* Customer Identity Subline */}
-        <div className="mt-3.5 pt-3 border-t border-[#1e293b] flex flex-wrap items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-4 text-slate-300">
-            <span className="flex items-center gap-1.5">
-              <User className="w-3.5 h-3.5 text-slate-400" />
-              <strong>Customer:</strong> {tx.customer.name}
-            </span>
-            <span className="text-slate-500">•</span>
-            <span className="font-mono text-[11px] text-slate-300">
-              {tx.customer.email}
-            </span>
-            {tx.customer.phone && (
-              <>
-                <span className="text-slate-500">•</span>
-                <span className="font-mono text-[11px] text-slate-400">{tx.customer.phone}</span>
-              </>
-            )}
+        {/* Customer sub-row */}
+        <div className="mt-4 pt-3 border-t border-[#1e293b] flex flex-wrap items-center justify-between gap-3 text-xs text-slate-300">
+          <div className="flex items-center gap-2">
+            <User className="w-3.5 h-3.5 text-slate-400" />
+            <span>Customer: <strong className="text-slate-100">{tx.customer.name}</strong> ({tx.customer.email})</span>
           </div>
-
           {tx.paypalOrderId && (
-            <div className="flex items-center gap-1 text-[11px] font-mono text-slate-400">
-              <span>PayPal Ref:</span>
-              <span className="text-cyan-400 font-bold">{tx.paypalOrderId}</span>
+            <div className="text-slate-400 font-mono text-[11px]">
+              PayPal Ref: <span className="text-cyan-400 font-semibold">{tx.paypalOrderId}</span>
             </div>
           )}
         </div>
       </div>
 
-      {/* Main Grid: Section B (Evidence) & Section C (AI Recommendation) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        
-        {/* ======================================================== */}
-        {/* SECTION B: EVIDENCE ANALYSIS                             */}
-        {/* ======================================================== */}
-        <div className="space-y-4">
-          <div className="p-4 rounded-xl bg-[#0a0f1d] border border-[#1e293b]">
-            <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-[#1e293b]">
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-mono uppercase tracking-wider text-cyan-400 font-semibold">
-                  Section B
-                </span>
-                <span className="text-slate-400">/</span>
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200">
-                  Evidence Analysis & Telemetry Signals
-                </h3>
-              </div>
-              <span className="text-[10px] font-mono text-slate-400">
-                {assessment.signals.length} Signals Observed
-              </span>
-            </div>
+      {/* ======================================================== */}
+      {/* SECTION B: WHY WAS THIS FLAGGED?                        */}
+      {/* ======================================================== */}
+      <div className="rounded-xl bg-[#0a0f1d] border border-[#1e293b] p-5 space-y-3">
+        <h2 className="text-sm font-bold text-slate-100">
+          Why was this flagged?
+        </h2>
+        <p className="text-xs text-slate-400">
+          Detected signals based on real telemetry evaluated before payment capture.
+        </p>
 
-            {/* Observed Telemetry Table (Hardware, Network, Geo) */}
-            <div className="mb-4 p-3 rounded-lg bg-[#060911] border border-[#1e293b] space-y-2 text-xs font-mono">
-              <div className="flex justify-between py-1 border-b border-[#1e293b]/60">
-                <span className="text-slate-400">Connection IP / Geolocation:</span>
-                <span className="text-slate-200 font-semibold">{tx.telemetry.ipAddress} ({tx.telemetry.ipCountry})</span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-[#1e293b]/60">
-                <span className="text-slate-400">Proxy / Commercial VPN:</span>
-                <span className={tx.telemetry.isProxyOrVpn ? 'text-[#f87171] font-bold' : 'text-[#34d399]'}>
-                  {tx.telemetry.isProxyOrVpn ? 'YES (Masked IP Detected)' : 'NO (Direct Residential)'}
-                </span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-[#1e293b]/60">
-                <span className="text-slate-400">Billing vs Shipping Match:</span>
-                <span className={tx.telemetry.shippingAddressMatchesBilling ? 'text-[#34d399]' : 'text-[#fbbf24]'}>
-                  {tx.telemetry.billingCountry} → {tx.telemetry.shippingCountry} ({tx.telemetry.shippingAddressMatchesBilling ? 'Aligned' : 'Mismatch'})
-                </span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-[#1e293b]/60">
-                <span className="text-slate-400">Account History / Declines:</span>
-                <span className="text-slate-200">
-                  {tx.telemetry.accountAgeDays !== undefined ? `${tx.telemetry.accountAgeDays}d active` : 'Unverified'} · {tx.telemetry.failedAttemptsInLastHour || 0} recent declines
-                </span>
-              </div>
-              <div className="flex justify-between py-1">
-                <span className="text-slate-400">Email Domain Type:</span>
-                <span className={tx.telemetry.isDisposableEmail ? 'text-[#f87171] font-bold' : 'text-slate-200'}>
-                  {tx.telemetry.emailDomain} ({tx.telemetry.isDisposableEmail ? 'Disposable Inbox' : 'Permanent Domain'})
-                </span>
-              </div>
-            </div>
+        <div className="space-y-2.5 pt-1">
+          {assessment.signals.length > 0 ? (
+            assessment.signals.map((sig) => {
+              const info = getSignalPlainEnglish(sig);
+              return (
+                <div 
+                  key={sig.id} 
+                  className="p-3.5 rounded-lg bg-[#060911] border border-[#1e293b] flex items-start justify-between gap-3"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold text-slate-200">
+                        {info.title}
+                      </span>
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded font-mono font-medium ${
+                        sig.severity === 'CRITICAL' || sig.severity === 'HIGH'
+                          ? 'bg-[#2d0b12] text-[#f87171] border border-[#7f1d1d]'
+                          : 'bg-[#2e1c07] text-[#fbbf24] border border-[#78350f]'
+                      }`}>
+                        {sig.severity}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-300 leading-relaxed">
+                      {info.meaning}
+                    </p>
+                  </div>
 
-            {/* Individual Evidence Signal Cards */}
-            <div className="space-y-3">
-              {assessment.signals.map((sig) => (
-                <EvidenceCard key={sig.id} signal={sig} />
-              ))}
-            </div>
-
-            {/* Missing Information & Uncertainty Indicator */}
-            <div className="mt-4 p-3 rounded-lg bg-[#060911] border border-[#1e293b]">
-              <div className="flex items-center justify-between text-xs mb-1.5">
-                <span className="font-semibold text-slate-300 flex items-center gap-1.5">
-                  <Cpu className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>Telemetry Completeness & Uncertainty</span>
-                </span>
-                <span className="font-mono text-cyan-400 font-bold">
-                  {Math.round(assessment.confidence * 100)}% Confidence
-                </span>
-              </div>
-              <div className="w-full bg-[#10172a] rounded-full h-1.5 mb-2.5">
-                <div
-                  className="bg-cyan-500 h-1.5 rounded-full"
-                  style={{ width: `${assessment.confidence * 100}%` }}
-                ></div>
-              </div>
-
-              {assessment.missingInformation.length > 0 ? (
-                <div>
-                  <span className="text-[10px] font-mono uppercase text-[#fbbf24] block mb-1">
-                    Unobserved Data Fields:
+                  <span className="text-xs font-mono font-bold text-slate-400 shrink-0">
+                    +{sig.scoreContribution} pts
                   </span>
-                  <ul className="list-disc list-inside text-[11px] text-slate-400 space-y-0.5">
-                    {assessment.missingInformation.map((item, idx) => (
-                      <li key={idx}>{item}</li>
-                    ))}
-                  </ul>
                 </div>
-              ) : (
-                <p className="text-[11px] text-[#34d399] flex items-center gap-1 font-mono">
-                  <CheckCircle className="w-3.5 h-3.5" /> All baseline telemetry vectors present.
-                </p>
-              )}
+              );
+            })
+          ) : (
+            <div className="p-4 rounded-lg bg-[#06281e]/30 border border-[#065f46] text-xs text-[#34d399] flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 shrink-0" />
+              <span>No suspicious signals detected. This transaction matches normal buyer behavior.</span>
             </div>
+          )}
+        </div>
+      </div>
 
-          </div>
+      {/* ======================================================== */}
+      {/* SECTION C: AI RECOMMENDATION                            */}
+      {/* ======================================================== */}
+      <div className="rounded-xl bg-[#0a0f1d] border border-[#1e293b] p-5 space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-bold text-slate-100">AI Recommendation</h2>
+          <span className={`px-2.5 py-1 rounded-md text-xs font-semibold border ${rec.badgeClass}`}>
+            {rec.actionLabel}
+          </span>
         </div>
 
-        {/* ======================================================== */}
-        {/* SECTION C: AI RECOMMENDATION & COUNTERFACTUALS           */}
-        {/* ======================================================== */}
-        <div className="space-y-4">
-          <div className="p-4 rounded-xl bg-[#0a0f1d] border border-[#1e293b] space-y-4">
-            <div className="flex items-center justify-between pb-2.5 border-b border-[#1e293b]">
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-mono uppercase tracking-wider text-cyan-400 font-semibold">
-                  Section C
-                </span>
-                <span className="text-slate-400">/</span>
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200">
-                  AI Recommendation & Counterfactuals
-                </h3>
-              </div>
-              <span className="text-[10px] font-mono text-cyan-400 font-bold">
-                Action: {assessment.recommendation.action}
-              </span>
-            </div>
+        <div className="p-4 rounded-lg bg-[#060911] border border-[#1e293b] space-y-2">
+          <h3 className="text-xs font-bold text-slate-200">
+            {rec.headline}
+          </h3>
+          <p className="text-xs text-slate-300 leading-relaxed">
+            {rec.summary}
+          </p>
+        </div>
+      </div>
 
-            {/* Primary Recommendation Banner */}
-            <div className={`p-4 rounded-xl border ${
-              assessment.tier === 'BLOCK'
-                ? 'bg-[#2d0b12]/30 border-[#7f1d1d]'
-                : assessment.tier === 'REVIEW'
-                ? 'bg-[#2e1c07]/30 border-[#78350f]'
-                : 'bg-[#06281e]/30 border-[#065f46]'
-            }`}>
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-mono uppercase font-bold tracking-wider text-slate-400">
-                      Recommendation Action:
-                    </span>
-                    <span className="text-xs font-bold font-mono text-slate-100">
-                      [{assessment.recommendation.action}]
-                    </span>
-                  </div>
-                  <h4 className="text-sm font-bold text-slate-100 mt-1">
-                    {assessment.recommendation.summary}
-                  </h4>
-                  <p className="text-xs text-slate-300 mt-1 leading-relaxed">
-                    {assessment.recommendation.merchantGuidance}
-                  </p>
-                </div>
+      {/* ======================================================== */}
+      {/* SECTION D: WHAT SHOULD I DO NEXT?                       */}
+      {/* ======================================================== */}
+      <div className="rounded-xl bg-[#0a0f1d] border border-[#1e293b] p-5 space-y-4">
+        <h2 className="text-sm font-bold text-slate-100">
+          What should I do next?
+        </h2>
 
-                <div className="text-right shrink-0">
-                  <div className="text-2xl font-bold font-mono text-slate-100">
-                    {assessment.overallScore}
-                    <span className="text-xs text-slate-400 font-normal">/100</span>
-                  </div>
-                  <div className="text-[10px] font-mono text-slate-400">
-                    Score
-                  </div>
-                </div>
-              </div>
-            </div>
+        <p className="text-xs text-slate-300 leading-relaxed">
+          {rec.nextStep}
+        </p>
 
-            {/* Evidence-Grounded AI Narrative */}
-            {mlPrediction && (
-              <div className="p-4 rounded-xl bg-[#060911] border border-[#1e293b] space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
-                    <span className="px-1.5 py-0.2 rounded bg-purple-950/80 text-purple-300 border border-purple-800 text-[10px] font-mono">
-                      Grounded AI
-                    </span>
-                    <span>Evidence Synthesis Narrative</span>
-                  </span>
-                  <span className="text-[11px] font-mono text-purple-300">
-                    ML Probability: {(mlPrediction.fraudProbability * 100).toFixed(1)}%
-                  </span>
-                </div>
-                <p className="text-xs text-slate-300 leading-relaxed">
-                  {mlPrediction.groundedExplanation}
-                </p>
-
-                {/* Factor weights */}
-                <div className="pt-2 border-t border-[#1e293b] flex flex-wrap gap-1.5">
-                  {mlPrediction.topFeatureWeights.map((f, i) => (
-                    <span
-                      key={i}
-                      className={`text-[10px] font-mono px-2 py-0.5 rounded border ${
-                        f.impact === 'INCREASE_RISK'
-                          ? 'bg-[#2d0b12] text-[#f87171] border-[#7f1d1d]'
-                          : 'bg-[#06281e] text-[#34d399] border-[#065f46]'
-                      }`}
-                    >
-                      {f.feature}: {f.weight > 0 ? `+${f.weight}` : f.weight}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* "What Would Change This Decision?" */}
-            <CounterfactualBox
-              counterfactuals={assessment.counterfactuals}
-              currentScore={assessment.overallScore}
+        {/* Merchant Decision Buttons */}
+        <div className="pt-2 border-t border-[#1e293b] space-y-3">
+          <div className="flex flex-col sm:flex-row items-center gap-2.5">
+            <input
+              type="text"
+              placeholder="Optional note for your team (e.g. 'Verified with customer by phone')..."
+              value={overrideNotes}
+              onChange={(e) => setOverrideNotes(e.target.value)}
+              className="w-full sm:flex-1 px-3 py-1.5 rounded-lg bg-[#060911] border border-[#1e293b] text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500"
             />
 
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <button
+                onClick={() => handleOverride('ALLOW')}
+                disabled={isSubmitting}
+                className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-lg bg-[#06281e] hover:bg-[#06281e]/80 text-[#34d399] border border-[#065f46] text-xs font-semibold transition-colors"
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>Approve Order</span>
+              </button>
+
+              <button
+                onClick={() => handleOverride('BLOCK')}
+                disabled={isSubmitting}
+                className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-lg bg-[#2d0b12] hover:bg-[#2d0b12]/80 text-[#f87171] border border-[#7f1d1d] text-xs font-semibold transition-colors"
+              >
+                <ShieldAlert className="w-3.5 h-3.5" />
+                <span>Block Order</span>
+              </button>
+            </div>
           </div>
         </div>
-
       </div>
 
       {/* ======================================================== */}
-      {/* SECTION D: DECISION AND AUDIT HISTORY                    */}
+      {/* PROGRESSIVE DISCLOSURE: VIEW TECHNICAL DETAILS           */}
       {/* ======================================================== */}
-      <div className="rounded-xl bg-[#0a0f1d] border border-[#1e293b] p-4 sm:p-5 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#1e293b]">
+      <div className="rounded-xl bg-[#0a0f1d] border border-[#1e293b] overflow-hidden">
+        <button
+          onClick={() => setShowTechnicalDetails(!showTechnicalDetails)}
+          className="w-full p-4 flex items-center justify-between text-xs font-medium text-slate-300 hover:text-white transition-colors"
+        >
           <div className="flex items-center gap-2">
-            <span className="text-[11px] font-mono uppercase tracking-wider text-cyan-400 font-semibold">
-              Section D
-            </span>
-            <span className="text-slate-400">/</span>
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200">
-              Decision & Immutable Audit History
-            </h3>
+            <Cpu className="w-4 h-4 text-cyan-400" />
+            <span>View Technical Details (Advanced)</span>
           </div>
-          <div className="flex items-center gap-2 text-xs font-mono">
-            <span className="text-slate-400">Engine Recommendation:</span>
-            <strong className="text-cyan-400">{assessment.recommendation.action}</strong>
-            <span className="text-slate-500">|</span>
-            <span className="text-slate-400">Verified Outcome:</span>
-            <strong className={tx.paymentStatus === 'CAPTURED' ? 'text-[#34d399]' : 'text-[#f87171]'}>
-              {tx.paymentStatus}
-            </strong>
-          </div>
-        </div>
+          {showTechnicalDetails ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        </button>
 
-        {/* Chronological Audit Log for this Order */}
-        <div className="space-y-2">
-          {orderLogs.length > 0 ? (
-            orderLogs.map((log) => (
-              <div 
-                key={log.id} 
-                className="p-3 rounded-lg bg-[#060911] border border-[#1e293b] flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-mono"
-              >
-                <div className="flex items-center gap-3">
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
-                    log.action === 'PAYMENT_CAPTURED'
-                      ? 'bg-[#06281e] text-[#34d399] border-[#065f46]'
-                      : log.action === 'PAYMENT_BLOCKED'
-                      ? 'bg-[#2d0b12] text-[#f87171] border-[#7f1d1d]'
-                      : log.action === 'MERCHANT_OVERRIDE'
-                      ? 'bg-purple-950/60 text-purple-300 border-purple-800'
-                      : 'bg-cyan-950/60 text-cyan-300 border-cyan-800'
-                  }`}>
-                    {log.action}
-                  </span>
-                  <span className="text-slate-300">
-                    Actor: <strong className="text-slate-100">{log.actor}</strong>
+        {showTechnicalDetails && (
+          <div className="p-5 border-t border-[#1e293b] space-y-5 bg-[#070b16]">
+            
+            {/* Raw Telemetry */}
+            <div className="space-y-2">
+              <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Raw Network & Device Telemetry</h4>
+              <div className="p-3 rounded-lg bg-[#060911] border border-[#1e293b] space-y-1.5 text-xs font-mono text-slate-300">
+                <div className="flex justify-between py-0.5">
+                  <span className="text-slate-400">IP Address:</span>
+                  <span>{tx.telemetry.ipAddress} ({tx.telemetry.ipCountry})</span>
+                </div>
+                <div className="flex justify-between py-0.5">
+                  <span className="text-slate-400">Proxy / VPN:</span>
+                  <span className={tx.telemetry.isProxyOrVpn ? 'text-[#f87171]' : 'text-[#34d399]'}>
+                    {tx.telemetry.isProxyOrVpn ? 'Yes (Anonymized)' : 'No (Direct)'}
                   </span>
                 </div>
-
-                <div className="flex items-center gap-3 text-slate-400 text-[11px]">
-                  <span>Policy: {log.policyVersion}</span>
-                  <span>{new Date(log.timestamp).toLocaleString()}</span>
+                <div className="flex justify-between py-0.5">
+                  <span className="text-slate-400">Device Fingerprint:</span>
+                  <span>{tx.telemetry.deviceFingerprint}</span>
+                </div>
+                <div className="flex justify-between py-0.5">
+                  <span className="text-slate-400">Billing → Shipping:</span>
+                  <span>{tx.telemetry.billingCountry} → {tx.telemetry.shippingCountry}</span>
+                </div>
+                <div className="flex justify-between py-0.5">
+                  <span className="text-slate-400">Account History:</span>
+                  <span>{tx.telemetry.accountAgeDays !== undefined ? `${tx.telemetry.accountAgeDays} days active` : 'New account'} · {tx.telemetry.failedAttemptsInLastHour || 0} recent declines</span>
                 </div>
               </div>
-            ))
-          ) : (
-            <div className="p-3 text-center text-xs text-slate-500 font-mono">
-              Initial assessment recorded in SQLite database.
             </div>
-          )}
-        </div>
 
-        {/* Merchant Decision Override Controls */}
-        <div className="pt-3 border-t border-[#1e293b] flex flex-col sm:flex-row items-center gap-3">
-          <input
-            type="text"
-            placeholder="Optional verification reason (e.g. 'Verified delivery destination with buyer via SMS')..."
-            value={overrideNotes}
-            onChange={(e) => setOverrideNotes(e.target.value)}
-            className="w-full sm:flex-1 px-3 py-1.5 rounded-lg bg-[#060911] border border-[#1e293b] text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500"
-          />
+            {/* Machine Learning Model Comparison */}
+            {mlPrediction && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Machine Learning Probability Model</h4>
+                  <span className="text-xs font-mono text-purple-300">
+                    Model Score: {(mlPrediction.fraudProbability * 100).toFixed(1)}%
+                  </span>
+                </div>
+                <div className="p-3 rounded-lg bg-[#060911] border border-[#1e293b] space-y-2">
+                  <p className="text-xs text-slate-300 leading-relaxed font-sans">
+                    {mlPrediction.groundedExplanation}
+                  </p>
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {mlPrediction.topFeatureWeights.map((f, i) => (
+                      <span
+                        key={i}
+                        className={`text-[10px] font-mono px-2 py-0.5 rounded border ${
+                          f.impact === 'INCREASE_RISK'
+                            ? 'bg-[#2d0b12] text-[#f87171] border-[#7f1d1d]'
+                            : 'bg-[#06281e] text-[#34d399] border-[#065f46]'
+                        }`}
+                      >
+                        {f.feature}: {f.weight > 0 ? `+${f.weight}` : f.weight}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
 
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <button
-              onClick={() => handleOverride('ALLOW')}
-              disabled={isSubmitting}
-              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#06281e] hover:bg-[#06281e]/80 text-[#34d399] border border-[#065f46] text-xs font-semibold transition-colors"
-            >
-              <CheckCircle className="w-3.5 h-3.5" />
-              <span>Force Allow</span>
-            </button>
+            {/* What Would Change This Decision? (Counterfactuals) */}
+            <div className="space-y-2">
+              <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">What Would Change This Decision?</h4>
+              <CounterfactualBox
+                counterfactuals={assessment.counterfactuals}
+                currentScore={assessment.overallScore}
+              />
+            </div>
 
-            <button
-              onClick={() => handleOverride('BLOCK')}
-              disabled={isSubmitting}
-              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#2d0b12] hover:bg-[#2d0b12]/80 text-[#f87171] border border-[#7f1d1d] text-xs font-semibold transition-colors"
-            >
-              <XCircle className="w-3.5 h-3.5" />
-              <span>Force Block</span>
-            </button>
+            {/* Order Audit Log */}
+            <div className="space-y-2">
+              <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Immutable Event Trail for This Order</h4>
+              <div className="space-y-1.5">
+                {orderLogs.length > 0 ? (
+                  orderLogs.map((log) => (
+                    <div 
+                      key={log.id} 
+                      className="p-2.5 rounded-lg bg-[#060911] border border-[#1e293b] flex items-center justify-between text-xs font-mono"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-cyan-400 font-semibold">{log.action}</span>
+                        <span className="text-slate-400">by {log.actor}</span>
+                      </div>
+                      <span className="text-slate-500 text-[11px]">
+                        {new Date(log.timestamp).toLocaleTimeString()}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-xs text-slate-500 font-mono">
+                    Initial risk evaluation recorded.
+                  </div>
+                )}
+              </div>
+            </div>
+
           </div>
-        </div>
-
+        )}
       </div>
 
     </div>
   );
 };
+
