@@ -8,7 +8,7 @@ import {
 import type { ColDef, RowClickedEvent } from 'ag-grid-community';
 import { RiskBadge } from './RiskBadge.js';
 import type { TransactionData } from '../types/index.js';
-import { Search, Filter, ArrowUpRight } from 'lucide-react';
+import { Search, Filter, ArrowUpRight, Inbox } from 'lucide-react';
 
 // Register AG Grid Community modules
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -29,19 +29,19 @@ export const TransactionGrid: React.FC<TransactionGridProps> = ({
   const [quickFilterText, setQuickFilterText] = useState('');
   const [tierFilter, setTierFilter] = useState<'ALL' | 'BLOCK' | 'REVIEW' | 'ALLOW'>('ALL');
 
-  // Custom AG Grid Theme matching PayShield dark-navy palette
+  // Custom AG Grid Theme matching PayShield enterprise dark-navy palette
   const darkNavyTheme = useMemo(() => {
     return themeQuartz.withParams({
       backgroundColor: '#0a0f1d',
-      foregroundColor: '#f8fafc',
+      foregroundColor: '#f1f5f9',
       headerBackgroundColor: '#070b16',
       headerTextColor: '#94a3b8',
-      oddRowBackgroundColor: '#0c1222',
+      oddRowBackgroundColor: '#090e1c',
       borderColor: '#1e293b',
-      rowHoverColor: 'rgba(6, 182, 212, 0.08)',
-      selectedRowBackgroundColor: 'rgba(6, 182, 212, 0.15)',
-      fontSize: 13,
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      rowHoverColor: 'rgba(6, 182, 212, 0.06)',
+      selectedRowBackgroundColor: 'rgba(6, 182, 212, 0.12)',
+      fontSize: 12,
+      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
     });
   }, []);
 
@@ -56,8 +56,8 @@ export const TransactionGrid: React.FC<TransactionGridProps> = ({
     return [
       {
         field: 'orderId',
-        headerName: 'Order Ref',
-        width: 145,
+        headerName: 'Order ID',
+        width: 140,
         pinned: 'left',
         cellRenderer: (params: any) => {
           const isSelected = params.value === selectedOrderId;
@@ -73,24 +73,24 @@ export const TransactionGrid: React.FC<TransactionGridProps> = ({
       {
         field: 'createdAt',
         headerName: 'Timestamp',
-        width: 130,
+        width: 135,
         valueFormatter: (params) => {
           if (!params.value) return '—';
           const d = new Date(params.value);
-          return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' ' + d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+          return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' · ' + d.toLocaleDateString([], { month: 'short', day: 'numeric' });
         },
       },
       {
         headerName: 'Customer',
         flex: 1.2,
-        minWidth: 170,
+        minWidth: 160,
         valueGetter: (params: any) => params.data?.customer?.name || params.data?.customerName || 'Anonymous',
         cellRenderer: (params: any) => {
           const email = params.data?.customer?.email || params.data?.customerEmail || '';
           return (
             <div className="flex flex-col justify-center h-full leading-tight py-1">
-              <span className="font-medium text-slate-100 text-xs truncate">{params.value || 'Anonymous'}</span>
-              <span className="text-[11px] text-slate-400 font-mono truncate">{email}</span>
+              <span className="font-medium text-slate-200 text-xs truncate">{params.value || 'Anonymous'}</span>
+              <span className="text-[10px] text-slate-400 font-mono truncate">{email}</span>
             </div>
           );
         },
@@ -103,15 +103,15 @@ export const TransactionGrid: React.FC<TransactionGridProps> = ({
           const curr = params.data?.currency || 'USD';
           return (
             <div className="flex items-center h-full font-mono font-semibold text-xs text-slate-100">
-              ${Number(params.value || 0).toFixed(2)} <span className="text-[10px] text-slate-400 ml-1">{curr}</span>
+              ${Number(params.value || 0).toFixed(2)} <span className="text-[10px] text-slate-400 ml-1 font-normal">{curr}</span>
             </div>
           );
         },
       },
       {
         field: 'riskTier',
-        headerName: 'PayShield Risk Assessment',
-        width: 195,
+        headerName: 'Risk Category',
+        width: 175,
         cellRenderer: (params: any) => {
           return (
             <div className="flex items-center h-full">
@@ -122,26 +122,26 @@ export const TransactionGrid: React.FC<TransactionGridProps> = ({
       },
       {
         field: 'paymentStatus',
-        headerName: 'Payment Gate Status',
-        width: 145,
+        headerName: 'Payment Status',
+        width: 135,
         cellRenderer: (params: any) => {
           const status = params.value || 'PENDING';
           const getStatusBadge = () => {
             switch (status) {
               case 'CAPTURED':
-                return 'bg-emerald-950/60 text-emerald-400 border-emerald-500/40';
+                return 'bg-[#06281e] text-[#34d399] border-[#065f46]';
               case 'BLOCKED':
-                return 'bg-rose-950/60 text-rose-400 border-rose-500/40';
+                return 'bg-[#2d0b12] text-[#f87171] border-[#7f1d1d]';
               case 'PENDING':
-                return 'bg-amber-950/60 text-amber-400 border-amber-500/40';
+                return 'bg-[#2e1c07] text-[#fbbf24] border-[#78350f]';
               default:
-                return 'bg-slate-800 text-slate-300 border-slate-700';
+                return 'bg-slate-900 text-slate-300 border-slate-700';
             }
           };
 
           return (
             <div className="flex items-center h-full">
-              <span className={`px-2 py-0.5 rounded text-[11px] font-mono font-semibold border ${getStatusBadge()}`}>
+              <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-semibold border ${getStatusBadge()}`}>
                 {status}
               </span>
             </div>
@@ -150,7 +150,7 @@ export const TransactionGrid: React.FC<TransactionGridProps> = ({
       },
       {
         headerName: 'Action',
-        width: 110,
+        width: 105,
         pinned: 'right',
         cellRenderer: (params: any) => {
           return (
@@ -160,10 +160,10 @@ export const TransactionGrid: React.FC<TransactionGridProps> = ({
                   e.stopPropagation();
                   onSelectTransaction(params.data.orderId);
                 }}
-                className="flex items-center gap-1 text-[11px] px-2 py-1 rounded bg-cyan-950/60 hover:bg-cyan-900/60 text-cyan-300 border border-cyan-800/60 transition-colors"
+                className="flex items-center gap-1 text-[11px] px-2.5 py-1 rounded bg-[#10172a] hover:bg-cyan-950/60 text-slate-300 hover:text-cyan-300 border border-[#1e293b] hover:border-cyan-800 transition-colors"
               >
                 <span>Inspect</span>
-                <ArrowUpRight className="w-3 h-3" />
+                <ArrowUpRight className="w-3 h-3 text-cyan-400" />
               </button>
             </div>
           );
@@ -179,70 +179,85 @@ export const TransactionGrid: React.FC<TransactionGridProps> = ({
   };
 
   return (
-    <div className="flex flex-col bg-[#0b0f1d] border border-slate-800/80 rounded-xl overflow-hidden shadow-xl">
+    <div className="flex flex-col bg-[#0a0f1d] border border-[#1e293b] rounded-xl overflow-hidden shadow-sm">
       
-      {/* Grid Header Controls */}
-      <div className="p-4 border-b border-slate-800/80 flex flex-wrap items-center justify-between gap-3 bg-[#080d19]/80">
+      {/* Table Header Controls & Filter Tabs */}
+      <div className="p-3.5 border-b border-[#1e293b] flex flex-wrap items-center justify-between gap-3 bg-[#070b16]">
         
-        {/* Tier Filter Tabs */}
-        <div className="flex items-center gap-1.5 p-1 rounded-lg bg-slate-900 border border-slate-800 text-xs">
+        {/* Risk Filter Tabs */}
+        <div className="flex items-center gap-1 p-1 rounded-lg bg-[#060911] border border-[#1e293b] text-xs">
           <button
             onClick={() => setTierFilter('ALL')}
-            className={`px-3 py-1.5 rounded-md font-medium transition-all ${
-              tierFilter === 'ALL' ? 'bg-cyan-950 text-cyan-300 border border-cyan-800/60 shadow-sm' : 'text-slate-400 hover:text-slate-200'
+            className={`px-3 py-1 rounded-md font-medium text-xs transition-colors ${
+              tierFilter === 'ALL' 
+                ? 'bg-[#10172a] text-cyan-400 border border-cyan-800/60' 
+                : 'text-slate-400 hover:text-slate-200 border border-transparent'
             }`}
           >
-            All Orders ({transactions.length})
+            All ({transactions.length})
           </button>
           <button
             onClick={() => setTierFilter('BLOCK')}
-            className={`px-3 py-1.5 rounded-md font-medium transition-all ${
-              tierFilter === 'BLOCK' ? 'bg-rose-950 text-rose-300 border border-rose-800/60 shadow-sm' : 'text-slate-400 hover:text-rose-300'
+            className={`px-3 py-1 rounded-md font-medium text-xs transition-colors ${
+              tierFilter === 'BLOCK' 
+                ? 'bg-[#2d0b12] text-[#f87171] border border-[#7f1d1d]' 
+                : 'text-slate-400 hover:text-[#f87171] border border-transparent'
             }`}
           >
-            Critical Blocked ({transactions.filter((t) => t.riskTier === 'BLOCK').length})
+            High Risk ({transactions.filter((t) => t.riskTier === 'BLOCK').length})
           </button>
           <button
             onClick={() => setTierFilter('REVIEW')}
-            className={`px-3 py-1.5 rounded-md font-medium transition-all ${
-              tierFilter === 'REVIEW' ? 'bg-amber-950 text-amber-300 border border-amber-800/60 shadow-sm' : 'text-slate-400 hover:text-amber-300'
+            className={`px-3 py-1 rounded-md font-medium text-xs transition-colors ${
+              tierFilter === 'REVIEW' 
+                ? 'bg-[#2e1c07] text-[#fbbf24] border border-[#78350f]' 
+                : 'text-slate-400 hover:text-[#fbbf24] border border-transparent'
             }`}
           >
-            Needs Review ({transactions.filter((t) => t.riskTier === 'REVIEW').length})
+            Review ({transactions.filter((t) => t.riskTier === 'REVIEW').length})
           </button>
           <button
             onClick={() => setTierFilter('ALLOW')}
-            className={`px-3 py-1.5 rounded-md font-medium transition-all ${
-              tierFilter === 'ALLOW' ? 'bg-emerald-950 text-emerald-300 border border-emerald-800/60 shadow-sm' : 'text-slate-400 hover:text-emerald-300'
+            className={`px-3 py-1 rounded-md font-medium text-xs transition-colors ${
+              tierFilter === 'ALLOW' 
+                ? 'bg-[#06281e] text-[#34d399] border border-[#065f46]' 
+                : 'text-slate-400 hover:text-[#34d399] border border-transparent'
             }`}
           >
-            Allowed ({transactions.filter((t) => t.riskTier === 'ALLOW').length})
+            Low Risk ({transactions.filter((t) => t.riskTier === 'ALLOW').length})
           </button>
         </div>
 
-        {/* Quick Search */}
+        {/* Search Filter */}
         <div className="flex items-center gap-2">
           <div className="relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search orders, customers, IPs..."
+              placeholder="Search by ID, email, country..."
               value={quickFilterText}
               onChange={(e) => setQuickFilterText(e.target.value)}
-              className="pl-9 pr-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700/80 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 w-56 sm:w-64"
+              className="pl-8 pr-3 py-1.5 rounded-lg bg-[#060911] border border-[#1e293b] text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500/70 w-52 sm:w-60"
             />
           </div>
 
-          <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-slate-400 font-mono bg-slate-900/60 px-2.5 py-1.5 rounded-lg border border-slate-800">
-            <Filter className="w-3.5 h-3.5 text-cyan-400" />
-            <span>AG Grid Community</span>
+          <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-slate-400 font-mono bg-[#060911] px-2.5 py-1.5 rounded-lg border border-[#1e293b]">
+            <Filter className="w-3 h-3 text-cyan-400" />
+            <span>AG Grid</span>
           </div>
         </div>
 
       </div>
 
       {/* The AG Grid Instance */}
-      <div className="h-[430px] w-full">
+      <div className="h-[410px] w-full relative">
+        {filteredData.length === 0 && !loading && (
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-[#0a0f1d] text-slate-400 space-y-2">
+            <Inbox className="w-8 h-8 text-slate-500" />
+            <p className="text-xs">No transactions match the selected filter.</p>
+          </div>
+        )}
+
         <AgGridReact<TransactionData>
           theme={darkNavyTheme}
           rowData={filteredData}
@@ -254,16 +269,16 @@ export const TransactionGrid: React.FC<TransactionGridProps> = ({
           pagination={true}
           paginationPageSize={10}
           paginationPageSizeSelector={[10, 20, 50]}
-          rowHeight={46}
-          headerHeight={38}
+          rowHeight={44}
+          headerHeight={36}
           suppressCellFocus={true}
         />
       </div>
 
       {/* Grid Footer Hint */}
-      <div className="px-4 py-2 bg-[#070b14] border-t border-slate-800/60 flex items-center justify-between text-[11px] text-slate-400">
-        <span>Click any row to open the deep-dive evidence and counterfactual investigation.</span>
-        <span className="font-mono text-cyan-400">Real-Time Risk Telemetry Active</span>
+      <div className="px-4 py-2 bg-[#070b16] border-t border-[#1e293b] flex items-center justify-between text-[11px] text-slate-400">
+        <span>Click any row to open the complete 4-section investigation report.</span>
+        <span className="font-mono text-cyan-400 text-[10px]">Active Rule Policy v1.2.0</span>
       </div>
 
     </div>
