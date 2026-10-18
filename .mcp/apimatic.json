@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json.schemastore.org/mcp-config.json",
+  "name": "apimatic-paypal-context",
+  "version": "1.0.0",
+  "description": "APIMatic Context Plugin configuration for PayPal Orders v2 REST API integration",
+  "provider": "APIMatic",
+  "mcpServers": {
+    "paypal-context-plugin": {
+      "command": "npx",
+      "args": ["-y", "@apimatic/context-matic", "--api", "paypal-orders-v2"],
+      "env": {
+        "SPEC_SOURCE": "https://api-m.sandbox.paypal.com/v2/checkout/orders",
+        "SDK_TARGET": "typescript-express",
+        "STRICT_VALIDATION": "true"
+      }
+    }
+  },
+  "canonicalEndpoints": {
+    "createOrder": {
+      "method": "POST",
+      "path": "/v2/checkout/orders",
+      "requiredHeaders": ["Authorization", "Content-Type"],
+      "intent": "CAPTURE"
+    },
+    "captureOrder": {
+      "method": "POST",
+      "path": "/v2/checkout/orders/{id}/capture",
+      "requiredHeaders": ["Authorization", "Content-Type"]
+    }
+  }
+}
