@@ -18,8 +18,8 @@ import {
 } from 'lucide-react';
 import { ShieldIllustration } from '../components/illustrations/ShieldIllustration.js';
 import { SandboxStoreIllustration } from '../components/illustrations/SandboxStoreIllustration.js';
+import { AnalyzeTransactionModal } from '../components/AnalyzeTransactionModal.js';
 import type { TransactionData } from '../types/index.js';
-import { api } from '../services/api.js';
 
 interface DashboardProps {
   transactions: TransactionData[];
@@ -38,7 +38,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   loading = false,
   searchFilter = '',
 }) => {
-  const [isSimulating, setIsSimulating] = useState(false);
+  const [isAnalyzeModalOpen, setIsAnalyzeModalOpen] = useState(false);
   const [simulationSuccess, setSimulationSuccess] = useState<string | null>(null);
 
   // Time-based greeting matching reference image
@@ -80,55 +80,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
     if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
     const diffDays = Math.floor(diffHours / 24);
     return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
-  };
-
-  // Quick Action: Analyze a transaction in real-time
-  const handleAnalyzeTransaction = async () => {
-    setIsSimulating(true);
-    setSimulationSuccess(null);
-    try {
-      const mockId = `PS-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
-      const isRisk = Math.random() > 0.5;
-
-      const newTx: TransactionData = {
-        orderId: mockId,
-        amount: isRisk ? 299.00 : 49.99,
-        currency: 'USD',
-        customer: {
-          name: isRisk ? 'Unknown Customer' : 'Sarah Johnson',
-          email: isRisk ? 'user123@temp.com' : 'sarah@email.com',
-          phone: isRisk ? undefined : '+1-555-019-4821',
-        },
-        items: [
-          { id: 'item-demo', name: isRisk ? 'Encrypted Hardware Key' : 'Security Token', price: isRisk ? 299.00 : 49.99, quantity: 1 }
-        ],
-        telemetry: {
-          ipAddress: isRisk ? '185.220.101.5' : '198.51.100.42',
-          ipCountry: isRisk ? 'NL' : 'US',
-          isProxyOrVpn: isRisk,
-          deviceFingerprint: `dfp_${Math.random().toString(36).substring(2, 7)}`,
-          userAgent: 'Mozilla/5.0',
-          billingCountry: 'US',
-          shippingCountry: 'US',
-          shippingAddressMatchesBilling: !isRisk,
-          emailDomain: isRisk ? 'temp.com' : 'email.com',
-          isDisposableEmail: isRisk,
-          accountAgeDays: isRisk ? 0 : 140,
-          ordersInLast24Hours: isRisk ? 5 : 1,
-          failedAttemptsInLastHour: isRisk ? 4 : 0,
-        },
-        createdAt: new Date().toISOString(),
-      };
-
-      const result = await api.evaluateTransaction(newTx);
-      await onRefresh();
-      setSimulationSuccess(`Order ${mockId} evaluated: Status is ${result.assessment.tier === 'BLOCK' ? 'Blocked' : result.assessment.tier === 'REVIEW' ? 'Review' : 'Completed'}`);
-      onSelectTransaction(mockId);
-    } catch (err: any) {
-      setSimulationSuccess(`Error: ${err.message}`);
-    } finally {
-      setIsSimulating(false);
-    }
   };
 
   return (
@@ -471,13 +422,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <div className="flex flex-col gap-2.5 pt-1">
               {/* Button 1: Analyze a Transaction */}
               <button
-                onClick={handleAnalyzeTransaction}
-                disabled={isSimulating}
-                className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs shadow-blue-500/20 transition-all cursor-pointer disabled:opacity-70"
+                onClick={() => setIsAnalyzeModalOpen(true)}
+                className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs shadow-blue-500/20 transition-all cursor-pointer"
               >
                 <div className="flex items-center gap-2">
-                  <Search className={`w-3.5 h-3.5 ${isSimulating ? 'animate-spin' : ''}`} />
-                  <span>{isSimulating ? 'Analyzing Telemetry...' : 'Analyze a Transaction'}</span>
+                  <Search className="w-3.5 h-3.5" />
+                  <span>Analyze a Transaction</span>
                 </div>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
@@ -576,6 +526,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
 
       </div>
+
+      {/* Interactive Risk Analyzer Modal */}
+      <AnalyzeTransactionModal
+        isOpen={isAnalyzeModalOpen}
+        onClose={() => setIsAnalyzeModalOpen(false)}
+        onTransactionAnalyzed={async (orderId) => {
+          await onRefresh();
+          onSelectTransaction(orderId);
+        }}
+      />
 
     </div>
   );

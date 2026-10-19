@@ -11,10 +11,13 @@ import {
   Cpu,
   User,
   Clock,
-  Sparkles
+  Sparkles,
+  FileText,
+  History
 } from 'lucide-react';
 import { CounterfactualBox } from '../components/CounterfactualBox.js';
 import { RiskBadge } from '../components/RiskBadge.js';
+import { InvestigationReportModal } from '../components/InvestigationReportModal.js';
 import type { TransactionData, RiskAssessment, MLPredictionResult, AuditRecord } from '../types/index.js';
 import { api } from '../services/api.js';
 
@@ -38,6 +41,7 @@ export const Investigation: React.FC<InvestigationProps> = ({ orderId, onBack, o
   const [actionMsg, setActionMsg] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showTechnicalDetails, setShowTechnicalDetails] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
   useEffect(() => {
     loadOrderDetails();
@@ -152,13 +156,23 @@ export const Investigation: React.FC<InvestigationProps> = ({ orderId, onBack, o
           <span>Back to Dashboard</span>
         </button>
 
-        <button
-          onClick={loadOrderDetails}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 text-xs font-medium transition-colors cursor-pointer shadow-xs"
-        >
-          <RefreshCw className="w-3.5 h-3.5" />
-          <span>Refresh Details</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsReportModalOpen(true)}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+          >
+            <FileText className="w-3.5 h-3.5" />
+            <span>Generate Report</span>
+          </button>
+
+          <button
+            onClick={loadOrderDetails}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 text-xs font-medium transition-colors cursor-pointer shadow-xs"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span>Refresh Details</span>
+          </button>
+        </div>
       </div>
 
       {actionMsg && (
@@ -356,6 +370,56 @@ export const Investigation: React.FC<InvestigationProps> = ({ orderId, onBack, o
           </div>
         </div>
       </div>
+      {/* ======================================================== */}
+      {/* SECTION E: INVESTIGATION HISTORY & AUDIT TRAIL          */}
+      {/* ======================================================== */}
+      <div className="rounded-2xl bg-white border border-[#e5edf8] p-6 space-y-4 shadow-xs">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <History className="w-4 h-4 text-blue-600" />
+            <h2 className="text-sm font-bold text-slate-900">Investigation History & Audit Trail</h2>
+          </div>
+          <span className="text-[11px] font-mono text-slate-400">
+            {orderLogs.length} audit {orderLogs.length === 1 ? 'event' : 'events'} recorded
+          </span>
+        </div>
+
+        <div className="space-y-2">
+          {orderLogs.length > 0 ? (
+            orderLogs.map((log) => (
+              <div 
+                key={log.id} 
+                className="p-3.5 rounded-xl bg-[#f8fafc] border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-mono"
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="w-2 h-2 rounded-full bg-blue-500" />
+                  <span className="font-bold text-slate-900">{log.action}</span>
+                  <span className="text-slate-400">by {log.actor}</span>
+                  {log.details?.overrideAction && (
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      log.details.overrideAction === 'ALLOW' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
+                    }`}>
+                      {log.details.overrideAction}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 text-[11px] text-slate-500">
+                  {log.details?.merchantNotes && (
+                    <span className="font-sans italic text-slate-600 truncate max-w-xs">
+                      "{log.details.merchantNotes}"
+                    </span>
+                  )}
+                  <span>{new Date(log.timestamp).toLocaleString()}</span>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-500">
+              Initial assessment recorded in tamper-evident ledger.
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* ======================================================== */}
       {/* PROGRESSIVE DISCLOSURE: VIEW TECHNICAL DETAILS           */}
@@ -473,6 +537,16 @@ export const Investigation: React.FC<InvestigationProps> = ({ orderId, onBack, o
           </div>
         )}
       </div>
+
+      {/* Formal Investigation Report Modal */}
+      <InvestigationReportModal
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+        transaction={tx}
+        assessment={assessment}
+        auditLogs={orderLogs}
+        mlPrediction={mlPrediction}
+      />
 
     </div>
   );
