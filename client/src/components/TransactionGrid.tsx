@@ -53,18 +53,18 @@ export const TransactionGrid: React.FC<TransactionGridProps> = ({
       {
         field: 'orderId',
         headerName: 'Order ID',
-        width: 170,
+        width: 175,
         pinned: 'left',
         cellRenderer: (params: any) => {
           const isSelected = params.value === selectedOrderId;
           const createdAt = params.data?.createdAt ? new Date(params.data.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
           return (
-            <div className="flex flex-col justify-center h-full">
+            <div className="flex flex-col justify-center h-full py-1 leading-normal">
               <span className={`font-mono text-xs font-semibold ${isSelected ? 'text-cyan-400' : 'text-slate-100 hover:text-cyan-400'}`}>
                 {params.value}
               </span>
               {createdAt && (
-                <span className="text-[10px] text-slate-400 font-mono">{createdAt}</span>
+                <span className="text-[10px] text-slate-400 font-mono leading-none mt-0.5">{createdAt}</span>
               )}
             </div>
           );
@@ -73,14 +73,14 @@ export const TransactionGrid: React.FC<TransactionGridProps> = ({
       {
         headerName: 'Customer',
         flex: 1.2,
-        minWidth: 150,
-        valueGetter: (params: any) => params.data?.customer?.name || 'Anonymous',
+        minWidth: 155,
+        valueGetter: (params: any) => params.data?.customer?.name || params.data?.customerName || 'Anonymous',
         cellRenderer: (params: any) => {
-          const email = params.data?.customer?.email || '';
+          const email = params.data?.customer?.email || params.data?.customerEmail || '';
           return (
-            <div className="flex flex-col justify-center h-full leading-tight">
+            <div className="flex flex-col justify-center h-full leading-snug py-1">
               <span className="text-xs text-slate-200 font-medium truncate">{params.value}</span>
-              {email && <span className="text-[11px] text-slate-400 truncate">{email}</span>}
+              {email && <span className="text-[11px] text-slate-400 truncate leading-none mt-0.5">{email}</span>}
             </div>
           );
         },
@@ -246,8 +246,8 @@ export const TransactionGrid: React.FC<TransactionGridProps> = ({
           loading={loading}
           pagination={true}
           paginationPageSize={10}
-          rowHeight={46}
-          headerHeight={38}
+          rowHeight={52}
+          headerHeight={40}
           suppressCellFocus={true}
         />
       </div>

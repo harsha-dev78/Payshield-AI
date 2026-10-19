@@ -1,0 +1,14 @@
+# Server specific gitignore
+node_modules/
+dist/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+*.log

@@ -87,19 +87,36 @@ export const dbService = {
       LIMIT ? OFFSET ?
     `).all(limit, offset) as any[];
 
-    return rows.map((r) => ({
-      orderId: r.order_id,
-      amount: r.amount,
-      currency: r.currency,
-      customerName: r.customer_name,
-      customerEmail: r.customer_email,
-      paymentStatus: r.payment_status,
-      createdAt: r.created_at,
-      riskScore: r.overall_score !== null ? r.overall_score : null,
-      riskTier: r.tier || 'UNASSESSED',
-      confidence: r.confidence !== null ? r.confidence : null,
-      paypalOrderId: r.paypal_order_id,
-    }));
+    return rows.map((r) => {
+      let telemetry = {};
+      try {
+        if (r.telemetry_json) {
+          telemetry = typeof r.telemetry_json === 'string' ? JSON.parse(r.telemetry_json) : r.telemetry_json;
+        }
+      } catch {
+        telemetry = {};
+      }
+
+      return {
+        orderId: r.order_id,
+        amount: r.amount,
+        currency: r.currency,
+        customerName: r.customer_name,
+        customerEmail: r.customer_email,
+        customer: {
+          name: r.customer_name || 'Anonymous',
+          email: r.customer_email || '',
+          phone: r.customer_phone || undefined,
+        },
+        telemetry,
+        paymentStatus: r.payment_status,
+        createdAt: r.created_at,
+        riskScore: r.overall_score !== null ? r.overall_score : null,
+        riskTier: r.tier || 'UNASSESSED',
+        confidence: r.confidence !== null ? r.confidence : null,
+        paypalOrderId: r.paypal_order_id,
+      };
+    });
   },
 
   updatePaymentStatus(orderId: string, status: string, paypalCaptureId?: string): void {
