@@ -16,6 +16,7 @@ interface SecurityInsightCardsProps {
   transactions: TransactionData[];
   onSelectTransaction: (orderId: string) => void;
   onSimulateOrder: () => void;
+  onNavigateToTab?: (tab: string) => void;
   isSimulating?: boolean;
 }
 
@@ -23,12 +24,18 @@ export const SecurityInsightCards: React.FC<SecurityInsightCardsProps> = ({
   transactions,
   onSelectTransaction,
   onSimulateOrder,
+  onNavigateToTab,
   isSimulating = false,
 }) => {
   // Find top flagged transaction to link to
   const topFlagged = transactions.find((t) => t.riskTier === 'BLOCK' || t.riskTier === 'REVIEW');
   const reviewCount = transactions.filter((t) => t.riskTier === 'REVIEW').length;
   const blockCount = transactions.filter((t) => t.riskTier === 'BLOCK').length;
+
+  // Real-time dynamic threat metrics evaluated from active transaction telemetry
+  const vpnCount = transactions.filter((t) => t.telemetry?.isProxyOrVpn).length;
+  const velocityCount = transactions.filter((t) => (t.telemetry?.failedAttemptsInLastHour || 0) >= 2 || (t.telemetry?.ordersInLast24Hours || 0) > 3).length;
+  const highValueMismatch = transactions.filter((t) => (t.amount > 350) && (t.telemetry?.shippingAddressMatchesBilling === false)).length;
 
   return (
     <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -47,39 +54,63 @@ export const SecurityInsightCards: React.FC<SecurityInsightCardsProps> = ({
             </h3>
           </div>
           <span className="inline-flex shrink-0 items-center rounded-xl bg-slate-900/80 px-2.5 py-1 text-[11px] font-mono text-indigo-300 border border-indigo-900/40">
-            7 days outlook
+            Real Telemetry
           </span>
         </div>
 
-        {/* Prediction Items */}
+        {/* Prediction Items (Grounded dynamically in active telemetry stream) */}
         <div className="flex flex-1 flex-col gap-2.5 justify-between">
           
           <div className="flex items-start gap-3 rounded-xl bg-[#0e1628] border border-slate-800/80 p-3">
-            <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400 mt-0.5" />
+            {vpnCount > 0 ? (
+              <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400 mt-0.5" />
+            ) : (
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400 mt-0.5" />
+            )}
             <div className="flex flex-col gap-0.5">
-              <p className="text-xs font-semibold text-slate-200">Tor & Proxy Subnet Activity</p>
+              <p className="text-xs font-semibold text-slate-200">
+                {vpnCount > 0 ? 'Tor & Proxy Subnet Activity Detected' : 'Network Routing Clean'}
+              </p>
               <p className="text-[11px] text-slate-400 leading-relaxed">
-                Elevated proxy routing detected in 2 recent checkouts. Recommended: keep pre-capture verification enabled.
+                {vpnCount > 0
+                  ? `Anonymized proxy/VPN routing observed in ${vpnCount} checkout${vpnCount > 1 ? 's' : ''}. Pre-capture firewall active.`
+                  : 'Zero commercial VPN or Tor exit nodes detected across active transactions.'}
               </p>
             </div>
           </div>
 
           <div className="flex items-start gap-3 rounded-xl bg-[#0e1628] border border-slate-800/80 p-3">
-            <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400 mt-0.5" />
+            {velocityCount > 0 ? (
+              <ShieldAlert className="h-4 w-4 shrink-0 text-rose-400 mt-0.5" />
+            ) : (
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400 mt-0.5" />
+            )}
             <div className="flex flex-col gap-0.5">
-              <p className="text-xs font-semibold text-slate-200">Velocity & Brute Attack Normal</p>
+              <p className="text-xs font-semibold text-slate-200">
+                {velocityCount > 0 ? 'Card-Testing Velocity Anomalies' : 'Velocity Baseline Normal'}
+              </p>
               <p className="text-[11px] text-slate-400 leading-relaxed">
-                Zero rapid card testing loops observed in last 24h. IP rate-limiting policy active.
+                {velocityCount > 0
+                  ? `Elevated attempt velocity detected across ${velocityCount} fingerprint${velocityCount > 1 ? 's' : ''}. Brute force mitigation armed.`
+                  : 'Zero rapid card testing loops detected in the active window. IP rate-limiting policy steady.'}
               </p>
             </div>
           </div>
 
           <div className="flex items-start gap-3 rounded-xl bg-[#0e1628] border border-slate-800/80 p-3">
-            <ShieldAlert className="h-4 w-4 shrink-0 text-rose-400 mt-0.5" />
+            {highValueMismatch > 0 ? (
+              <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400 mt-0.5" />
+            ) : (
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400 mt-0.5" />
+            )}
             <div className="flex flex-col gap-0.5">
-              <p className="text-xs font-semibold text-slate-200">High-Value Electronics Mismatch</p>
+              <p className="text-xs font-semibold text-slate-200">
+                {highValueMismatch > 0 ? 'High-Value Basket Geographic Divergence' : 'High-Value Orders Aligned'}
+              </p>
               <p className="text-[11px] text-slate-400 leading-relaxed">
-                Orders with billing mismatch over $400 are automatically routed to manual merchant review.
+                {highValueMismatch > 0
+                  ? `${highValueMismatch} order${highValueMismatch > 1 ? 's' : ''} over $350 flagged with billing/shipping discrepancies for review.`
+                  : 'High-ticket orders demonstrate consistent domestic delivery and billing alignment.'}
               </p>
             </div>
           </div>
@@ -216,8 +247,11 @@ export const SecurityInsightCards: React.FC<SecurityInsightCardsProps> = ({
           {/* Action 3: Test Store */}
           <div 
             onClick={() => {
-              // Trigger navigation to store via hash or click
-              window.location.hash = '#store';
+              if (onNavigateToTab) {
+                onNavigateToTab('checkout');
+              } else {
+                window.location.hash = '#store';
+              }
             }}
             className="flex items-center justify-between gap-3 rounded-xl bg-[#0e1628] border border-slate-800/80 p-3 hover:border-teal-600/60 transition-all cursor-pointer group"
           >

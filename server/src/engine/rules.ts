@@ -76,12 +76,12 @@ export const DETERMINISTIC_RULES: EvaluationRule[] = [
     category: 'BEHAVIORAL',
     severity: 'MEDIUM',
     evaluate: (tx) => {
-      const domain = (tx.telemetry.emailDomain || tx.customer.email.split('@')[1] || '').toLowerCase();
-      if (tx.telemetry.isDisposableEmail || DISPOSABLE_DOMAINS.has(domain)) {
+      const domain = (tx.telemetry?.emailDomain || tx.customer?.email?.split('@')[1] || '').toLowerCase();
+      if (tx.telemetry?.isDisposableEmail || DISPOSABLE_DOMAINS.has(domain)) {
         return {
           triggered: true,
           contribution: 18,
-          fact: `Registered contact email uses an ephemeral domain: @${domain}.`,
+          fact: `Registered contact email uses an ephemeral domain: @${domain || 'unknown'}.`,
           reason: 'Temporary email services offer zero persistent identity, complicating chargeback contact and dispute resolution.',
         };
       }

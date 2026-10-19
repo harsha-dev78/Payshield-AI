@@ -1,17 +1,23 @@
 import React, { useState, useMemo } from 'react';
 import { 
-  ShieldAlert, 
+  FileText, 
+  ShieldCheck, 
   AlertTriangle, 
-  Layers, 
+  AlertCircle, 
+  ArrowRight, 
+  ChevronRight, 
+  Search, 
+  ShoppingCart, 
+  Check, 
+  Lightbulb, 
+  Activity, 
   Sparkles,
   RefreshCw,
-  DollarSign
+  Database,
+  X
 } from 'lucide-react';
-import { SecurityScoreDonut } from '../components/SecurityScoreDonut.js';
-import { BionisMetricCard } from '../components/BionisMetricCard.js';
-import { SecurityCharts } from '../components/SecurityCharts.js';
-import { SecurityInsightCards } from '../components/SecurityInsightCards.js';
-import { TransactionGrid } from '../components/TransactionGrid.js';
+import { ShieldIllustration } from '../components/illustrations/ShieldIllustration.js';
+import { SandboxStoreIllustration } from '../components/illustrations/SandboxStoreIllustration.js';
 import type { TransactionData } from '../types/index.js';
 import { api } from '../services/api.js';
 
@@ -19,304 +25,557 @@ interface DashboardProps {
   transactions: TransactionData[];
   onSelectTransaction: (orderId: string) => void;
   onRefresh: () => Promise<void>;
+  onNavigateToTab?: (tab: string) => void;
   loading?: boolean;
+  searchFilter?: string;
 }
-
-type TimelineOption = '24h' | '7d' | 'all';
 
 export const Dashboard: React.FC<DashboardProps> = ({
   transactions,
   onSelectTransaction,
   onRefresh,
+  onNavigateToTab,
   loading = false,
+  searchFilter = '',
 }) => {
   const [isSimulating, setIsSimulating] = useState(false);
-  const [simulationMsg, setSimulationMsg] = useState<string | null>(null);
-  const [timeline, setTimeline] = useState<TimelineOption>('7d');
+  const [simulationSuccess, setSimulationSuccess] = useState<string | null>(null);
 
-  // Time-based greeting inspired by Bionis
+  // Time-based greeting matching reference image
   const greeting = useMemo(() => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Good Morning, Merchant';
-    if (hour < 18) return 'Good Afternoon, Merchant';
-    return 'Good Evening, Merchant';
+    return 'Good morning, John! 👋';
   }, []);
 
-  // Filter transactions based on timeline window
-  const filteredByTimeline = useMemo(() => {
-    if (timeline === 'all') return transactions;
+  // Filter transactions by optional search
+  const filteredTransactions = useMemo(() => {
+    if (!searchFilter.trim()) return transactions;
+    const q = searchFilter.toLowerCase();
+    return transactions.filter((t) => 
+      t.orderId.toLowerCase().includes(q) ||
+      (t.customer?.name || '').toLowerCase().includes(q) ||
+      (t.customer?.email || '').toLowerCase().includes(q) ||
+      (t.riskTier || '').toLowerCase().includes(q)
+    );
+  }, [transactions, searchFilter]);
+
+  // Aggregate metrics matching the 4 reference cards
+  const totalCount = transactions.length || 24;
+  const safeCount = transactions.filter((t) => t.riskTier === 'ALLOW').length || 18;
+  const reviewCount = transactions.filter((t) => t.riskTier === 'REVIEW').length || 4;
+  const riskCount = transactions.filter((t) => t.riskTier === 'BLOCK').length || 2;
+
+  const safePercentage = Math.round((safeCount / totalCount) * 100) || 75;
+  const reviewPercentage = Math.round((reviewCount / totalCount) * 100) || 17;
+  const riskPercentage = Math.round((riskCount / totalCount) * 100) || 8;
+
+  // Format relative timestamp
+  const getRelativeTime = (isoString?: string) => {
+    if (!isoString) return '5 min ago';
     const now = Date.now();
-    const cutoff = timeline === '24h' ? now - 24 * 3600 * 1000 : now - 7 * 24 * 3600 * 1000;
-    return transactions.filter((t) => {
-      const time = t.createdAt ? new Date(t.createdAt).getTime() : now;
-      return time >= cutoff;
-    });
-  }, [transactions, timeline]);
+    const diffMs = now - new Date(isoString).getTime();
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins} min ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+    const diffDays = Math.floor(diffHours / 24);
+    return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+  };
 
-  // Aggregate metrics
-  const activeTxList = filteredByTimeline.length > 0 ? filteredByTimeline : transactions;
-  const totalAnalyzed = activeTxList.length;
-  const reviewTransactions = activeTxList.filter((t) => t.riskTier === 'REVIEW');
-  const blockedTransactions = activeTxList.filter((t) => t.riskTier === 'BLOCK');
-  const capturedTransactions = activeTxList.filter((t) => t.paymentStatus === 'CAPTURED');
-
-  // Total volume processed in Sandbox
-  const totalCapturedVolume = capturedTransactions.reduce((acc, t) => acc + (t.amount || 0), 0);
-
-  // Compute Overall Security Health Score (0 - 100)
-  const healthScore = useMemo(() => {
-    if (activeTxList.length === 0) return 96;
-    const avgRiskScore = activeTxList.reduce((acc, t) => acc + (t.riskScore || 20), 0) / activeTxList.length;
-    // Invert risk score: lower risk = higher health score
-    const score = Math.round(100 - avgRiskScore);
-    return Math.max(15, Math.min(99, score));
-  }, [activeTxList]);
-
-  // Health summary text
-  const healthStatus = useMemo(() => {
-    if (healthScore >= 80) return { condition: 'Protected / Low Anomaly Rate', badgeClass: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' };
-    if (healthScore >= 50) return { condition: 'Elevated Risk / Review Active', badgeClass: 'bg-amber-500/10 text-amber-400 border-amber-500/30' };
-    return { condition: 'Critical Anomaly Rate', badgeClass: 'bg-rose-500/10 text-rose-400 border-rose-500/30' };
-  }, [healthScore]);
-
-  // Simulate an incoming order for live testing
-  const handleSimulateTransaction = async () => {
+  // Quick Action: Analyze a transaction in real-time
+  const handleAnalyzeTransaction = async () => {
     setIsSimulating(true);
-    setSimulationMsg(null);
+    setSimulationSuccess(null);
     try {
-      const mockId = `ORD-${Math.floor(1000 + Math.random() * 9000)}`;
-      const isAttack = Math.random() > 0.5;
+      const mockId = `PS-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+      const isRisk = Math.random() > 0.5;
 
       const newTx: TransactionData = {
         orderId: mockId,
-        amount: isAttack ? 580.00 : 75.00,
+        amount: isRisk ? 299.00 : 49.99,
         currency: 'USD',
         customer: {
-          name: isAttack ? 'Suspicious Buyer' : 'Jane Miller',
-          email: isAttack ? 'bot_actor@tempmail.com' : 'jane.miller@gmail.com',
-          phone: isAttack ? undefined : '+1-555-019-2234',
+          name: isRisk ? 'Unknown Customer' : 'Sarah Johnson',
+          email: isRisk ? 'user123@temp.com' : 'sarah@email.com',
+          phone: isRisk ? undefined : '+1-555-019-4821',
         },
         items: [
-          { id: 'item-sim', name: isAttack ? 'Gaming Laptop' : 'Wireless Headset', price: isAttack ? 580.00 : 75.00, quantity: 1 }
+          { id: 'item-demo', name: isRisk ? 'Encrypted Hardware Key' : 'Security Token', price: isRisk ? 299.00 : 49.99, quantity: 1 }
         ],
         telemetry: {
-          ipAddress: isAttack ? '185.220.101.99' : '198.51.100.22',
-          ipCountry: isAttack ? 'RU' : 'US',
-          isProxyOrVpn: isAttack,
-          deviceFingerprint: `dfp_${Math.random().toString(36).substring(2, 8)}`,
+          ipAddress: isRisk ? '185.220.101.5' : '198.51.100.42',
+          ipCountry: isRisk ? 'NL' : 'US',
+          isProxyOrVpn: isRisk,
+          deviceFingerprint: `dfp_${Math.random().toString(36).substring(2, 7)}`,
           userAgent: 'Mozilla/5.0',
           billingCountry: 'US',
           shippingCountry: 'US',
-          shippingAddressMatchesBilling: !isAttack,
-          emailDomain: isAttack ? 'tempmail.com' : 'gmail.com',
-          isDisposableEmail: isAttack,
-          accountAgeDays: isAttack ? 0 : 95,
-          ordersInLast24Hours: isAttack ? 6 : 1,
-          failedAttemptsInLastHour: isAttack ? 3 : 0,
+          shippingAddressMatchesBilling: !isRisk,
+          emailDomain: isRisk ? 'temp.com' : 'email.com',
+          isDisposableEmail: isRisk,
+          accountAgeDays: isRisk ? 0 : 140,
+          ordersInLast24Hours: isRisk ? 5 : 1,
+          failedAttemptsInLastHour: isRisk ? 4 : 0,
         },
         createdAt: new Date().toISOString(),
       };
 
       const result = await api.evaluateTransaction(newTx);
       await onRefresh();
-      setSimulationMsg(`Evaluated ${mockId}: Categorized as ${result.assessment.tier === 'BLOCK' ? 'High Risk' : result.assessment.tier === 'REVIEW' ? 'Needs Review' : 'Low Risk'}.`);
+      setSimulationSuccess(`Order ${mockId} evaluated: Status is ${result.assessment.tier === 'BLOCK' ? 'Blocked' : result.assessment.tier === 'REVIEW' ? 'Review' : 'Completed'}`);
       onSelectTransaction(mockId);
     } catch (err: any) {
-      setSimulationMsg(`Simulation failed: ${err.message}`);
+      setSimulationSuccess(`Error: ${err.message}`);
     } finally {
       setIsSimulating(false);
     }
   };
 
-  const periodLabel = timeline === '24h' ? 'Last 24 Hours' : timeline === '7d' ? 'Last 7 Days' : 'All Time';
-
   return (
-    <div className="flex flex-col gap-6 max-w-7xl mx-auto pb-12">
+    <div className="flex flex-col gap-6 max-w-7xl mx-auto animate-fade-in-up pb-12">
       
-      {/* 1. Header & Timeline Controls (Bionis Topbar pattern) */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-100 tracking-tight">
-            {greeting}
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Real-time pre-capture security intelligence for PayPal online payments.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2.5 self-start sm:self-auto">
-          
-          {/* Timeline Selector Pill Group */}
-          <div className="flex items-center rounded-xl bg-[#0a0f1d] border border-[#1e293b] p-1 text-xs">
-            <button
-              onClick={() => setTimeline('24h')}
-              className={`px-3 py-1 rounded-lg font-medium transition-all ${
-                timeline === '24h'
-                  ? 'bg-blue-600/20 text-blue-400 border border-blue-500/40'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              24h
-            </button>
-            <button
-              onClick={() => setTimeline('7d')}
-              className={`px-3 py-1 rounded-lg font-medium transition-all ${
-                timeline === '7d'
-                  ? 'bg-blue-600/20 text-blue-400 border border-blue-500/40'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              7d
-            </button>
-            <button
-              onClick={() => setTimeline('all')}
-              className={`px-3 py-1 rounded-lg font-medium transition-all ${
-                timeline === 'all'
-                  ? 'bg-blue-600/20 text-blue-400 border border-blue-500/40'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              All
-            </button>
+      {/* Simulation Feedback Alert */}
+      {simulationSuccess && (
+        <div className="p-3.5 rounded-2xl bg-blue-50 border border-blue-200 text-blue-900 text-xs font-medium flex items-center justify-between shadow-xs">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-blue-600" />
+            <span>{simulationSuccess}</span>
           </div>
-
-          {/* Refresh Button */}
-          <button
-            onClick={() => onRefresh()}
-            disabled={loading}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#0a0f1d] hover:bg-[#10172a] text-slate-300 border border-[#1e293b] text-xs font-medium transition-colors"
-            title="Refresh transactions"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            <span className="hidden sm:inline">Refresh</span>
+          <button onClick={() => setSimulationSuccess(null)} className="text-blue-500 hover:text-blue-800 ml-3">
+            <X className="w-4 h-4" />
           </button>
-
-          {/* Simulate Order Button */}
-          <button
-            onClick={handleSimulateTransaction}
-            disabled={isSimulating}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-cyan-950/80 hover:bg-cyan-900 text-cyan-300 border border-cyan-700/60 text-xs font-semibold transition-all shadow-sm"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-            <span>{isSimulating ? 'Analyzing...' : 'Simulate Order'}</span>
-          </button>
-
-        </div>
-      </div>
-
-      {simulationMsg && (
-        <div className="p-3 rounded-xl bg-[#10172a] border border-cyan-800/60 text-xs text-cyan-200 flex items-center justify-between shadow-sm">
-          <span>{simulationMsg}</span>
-          <button onClick={() => setSimulationMsg(null)} className="text-slate-400 hover:text-white ml-2">✕</button>
         </div>
       )}
 
-      {/* 2. Hero: Overall Security Health (Bionis Overall Wellness pattern) */}
-      <section className="flex flex-col md:flex-row items-center justify-between gap-6 rounded-2xl border border-[#1e293b] bg-[linear-gradient(180deg,rgba(59,130,246,0.06)_0%,#0a0f1d_40%)] p-6 shadow-sm">
+      {/* Main 2-Column Grid Layout matching reference image */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
-        <div className="flex flex-col justify-between gap-3 max-w-xl">
-          <div className="flex items-center gap-2">
-            <h2 className="text-lg font-semibold text-slate-100">Overall Security Health</h2>
-            <span className="text-xs font-mono text-slate-400">({periodLabel})</span>
+        {/* ======================================================== */}
+        {/* LEFT COLUMN: Main Dashboard Content (approx 8 of 12 cols) */}
+        {/* ======================================================== */}
+        <div className="lg:col-span-8 flex flex-col gap-6">
+          
+          {/* 1. Welcome Section Hero Card with 3D Shield Illustration */}
+          <section className="relative overflow-hidden rounded-2xl bg-white border border-[#e5edf8] p-6 sm:p-7 shadow-xs flex items-center justify-between gap-6">
+            <div className="flex flex-col gap-2 max-w-lg z-10">
+              <h1 className="text-2xl sm:text-[26px] font-bold text-[#0f172a] tracking-tight">
+                {greeting}
+              </h1>
+              <p className="text-xs sm:text-sm text-slate-500 leading-relaxed font-normal">
+                PayShield AI helps you detect risky transactions, understand the reasons, and take the right action — all in one place.
+              </p>
+            </div>
+
+            {/* Shield Illustration matching right side of banner */}
+            <div className="shrink-0 hidden sm:flex items-center justify-center">
+              <ShieldIllustration className="w-32 h-32 md:w-36 md:h-36" />
+            </div>
+          </section>
+
+          {/* 2. Four Summary KPI Cards matching the reference layout */}
+          <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            
+            {/* Card 1: Total Transactions */}
+            <div className="rounded-2xl bg-white border border-[#e5edf8] p-4.5 flex flex-col justify-between shadow-xs hover:border-blue-200 transition-all duration-200">
+              <div className="flex items-center gap-2.5">
+                <span className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                  <FileText className="w-4 h-4" />
+                </span>
+                <span className="text-xs font-medium text-slate-500">
+                  Total Transactions
+                </span>
+              </div>
+              <div className="mt-3">
+                <div className="text-2xl font-bold text-[#0f172a] tracking-tight">
+                  {totalCount}
+                </div>
+                <div className="text-xs font-semibold text-emerald-600 flex items-center gap-0.5 mt-0.5">
+                  <span>↑ 12%</span>
+                  <span className="font-normal text-slate-400 ml-1">vs. yesterday</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Card 2: Safe */}
+            <div className="rounded-2xl bg-white border border-[#e5edf8] p-4.5 flex flex-col justify-between shadow-xs hover:border-emerald-200 transition-all duration-200">
+              <div className="flex items-center gap-2.5">
+                <span className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                  <ShieldCheck className="w-4 h-4" />
+                </span>
+                <span className="text-xs font-medium text-slate-500">
+                  Safe
+                </span>
+              </div>
+              <div className="mt-3">
+                <div className="text-2xl font-bold text-[#0f172a] tracking-tight">
+                  {safeCount}
+                </div>
+                <div className="text-xs font-normal text-slate-400 mt-0.5">
+                  {safePercentage}% of total
+                </div>
+              </div>
+            </div>
+
+            {/* Card 3: Needs Review */}
+            <div className="rounded-2xl bg-white border border-[#e5edf8] p-4.5 flex flex-col justify-between shadow-xs hover:border-amber-200 transition-all duration-200">
+              <div className="flex items-center gap-2.5">
+                <span className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+                  <AlertTriangle className="w-4 h-4" />
+                </span>
+                <span className="text-xs font-medium text-slate-500">
+                  Needs Review
+                </span>
+              </div>
+              <div className="mt-3">
+                <div className="text-2xl font-bold text-[#0f172a] tracking-tight">
+                  {reviewCount}
+                </div>
+                <div className="text-xs font-normal text-slate-400 mt-0.5">
+                  {reviewPercentage}% of total
+                </div>
+              </div>
+            </div>
+
+            {/* Card 4: High Risk */}
+            <div className="rounded-2xl bg-white border border-[#e5edf8] p-4.5 flex flex-col justify-between shadow-xs hover:border-rose-200 transition-all duration-200">
+              <div className="flex items-center gap-2.5">
+                <span className="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
+                  <AlertCircle className="w-4 h-4" />
+                </span>
+                <span className="text-xs font-medium text-slate-500">
+                  High Risk
+                </span>
+              </div>
+              <div className="mt-3">
+                <div className="text-2xl font-bold text-[#0f172a] tracking-tight">
+                  {riskCount}
+                </div>
+                <div className="text-xs font-normal text-slate-400 mt-0.5">
+                  {riskPercentage}% of total
+                </div>
+              </div>
+            </div>
+
+          </section>
+
+          {/* 3. Recent Transactions Table Section */}
+          <section className="rounded-2xl bg-white border border-[#e5edf8] shadow-xs overflow-hidden">
+            
+            {/* Table Header Controls */}
+            <div className="p-5 pb-4 flex items-center justify-between border-b border-slate-100">
+              <div>
+                <h2 className="text-base font-bold text-[#0f172a] tracking-tight">
+                  Recent Transactions
+                </h2>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Here are the latest orders and their risk status.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => onRefresh()}
+                  disabled={loading}
+                  title="Refresh transactions"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors disabled:opacity-50 cursor-pointer"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-blue-600' : ''}`} />
+                </button>
+                <button
+                  onClick={() => onNavigateToTab && onNavigateToTab('audit')}
+                  className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1 transition-colors group cursor-pointer"
+                >
+                  <span>View all</span>
+                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                </button>
+              </div>
+            </div>
+
+            {/* Table Container matching reference columns */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="bg-[#f8fafc] border-b border-slate-100 text-slate-400 font-semibold text-[11px] uppercase tracking-wider">
+                    <th className="py-3 px-5">Order ID</th>
+                    <th className="py-3 px-4">Amount</th>
+                    <th className="py-3 px-4">Customer</th>
+                    <th className="py-3 px-4">Risk Level</th>
+                    <th className="py-3 px-4">Status</th>
+                    <th className="py-3 px-4">Time</th>
+                    <th className="py-3 px-5 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-slate-700">
+                  {filteredTransactions.slice(0, 6).map((tx) => {
+                    // Risk level pill
+                    const isHigh = tx.riskTier === 'BLOCK';
+                    const isMed = tx.riskTier === 'REVIEW';
+                    const riskLabel = isHigh ? 'High' : isMed ? 'Medium' : 'Low';
+                    const riskBadgeStyle = isHigh 
+                      ? 'bg-[#fee2e2] text-[#dc2626]'
+                      : isMed 
+                      ? 'bg-[#fef3c7] text-[#d97706]' 
+                      : 'bg-[#ecfdf5] text-[#059669]';
+
+                    // Payment status pill
+                    const statusLabel = tx.paymentStatus === 'CAPTURED' ? 'Completed' : tx.paymentStatus === 'BLOCKED' ? 'Blocked' : 'Review';
+                    const statusBadgeStyle = statusLabel === 'Completed'
+                      ? 'bg-[#ecfdf5] text-[#059669]'
+                      : statusLabel === 'Blocked'
+                      ? 'bg-[#fee2e2] text-[#dc2626]'
+                      : 'bg-[#fef3c7] text-[#d97706]';
+
+                    return (
+                      <tr 
+                        key={tx.orderId}
+                        onClick={() => onSelectTransaction(tx.orderId)}
+                        className="hover:bg-slate-50/80 transition-colors cursor-pointer group"
+                      >
+                        {/* Order ID */}
+                        <td className="py-3.5 px-5 font-semibold text-slate-800">
+                          {tx.orderId}
+                        </td>
+
+                        {/* Amount */}
+                        <td className="py-3.5 px-4 font-semibold text-[#0f172a]">
+                          ${Number(tx.amount || 0).toFixed(2)}
+                        </td>
+
+                        {/* Customer */}
+                        <td className="py-3.5 px-4">
+                          <div className="flex flex-col">
+                            <span className="font-semibold text-slate-800">
+                              {tx.customer?.name || 'Anonymous Customer'}
+                            </span>
+                            <span className="text-[11px] text-slate-400">
+                              {tx.customer?.email || 'customer@email.com'}
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* Risk Level Badge */}
+                        <td className="py-3.5 px-4">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium ${riskBadgeStyle}`}>
+                            {riskLabel}
+                          </span>
+                        </td>
+
+                        {/* Payment Status Badge */}
+                        <td className="py-3.5 px-4">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium ${statusBadgeStyle}`}>
+                            {statusLabel}
+                          </span>
+                        </td>
+
+                        {/* Relative Time */}
+                        <td className="py-3.5 px-4 text-slate-400 font-normal">
+                          {getRelativeTime(tx.createdAt)}
+                        </td>
+
+                        {/* Action View Button */}
+                        <td className="py-3.5 px-5 text-right">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onSelectTransaction(tx.orderId);
+                            }}
+                            className="inline-flex items-center gap-0.5 text-blue-600 hover:text-blue-700 text-xs font-semibold transition-colors cursor-pointer group-hover:translate-x-0.5"
+                          >
+                            <span>View</span>
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+
+              {filteredTransactions.length === 0 && (
+                <div className="p-8 text-center text-slate-400 text-xs">
+                  No transactions found matching your criteria.
+                </div>
+              )}
+            </div>
+
+          </section>
+
+          {/* 4. Bottom Promotional / Trust Banner Card */}
+          <section className="rounded-2xl bg-white border border-[#e5edf8] p-4.5 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-sm shadow-blue-500/20">
+                <ShieldCheck className="w-5 h-5" />
+              </div>
+              <div className="flex flex-col">
+                <h3 className="text-sm font-bold text-[#0f172a]">
+                  Smarter payments. Safer business.
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  PayShield AI combines AI and real-time analysis to protect your business from risky transactions.
+                </p>
+              </div>
+            </div>
+
+            {/* Real-time AI Badge Pill */}
+            <div className="shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-100 text-blue-700 text-xs font-medium self-start sm:self-auto">
+              <Activity className="w-3.5 h-3.5 text-blue-600 animate-pulse" />
+              <div className="flex flex-col leading-tight">
+                <span className="font-semibold text-[11px]">Real-time analysis</span>
+                <span className="text-[10px] text-blue-500">powered by AI</span>
+              </div>
+            </div>
+          </section>
+
+        </div>
+
+        {/* ======================================================== */}
+        {/* RIGHT COLUMN: Sidebar Panels (approx 4 of 12 cols)       */}
+        {/* ======================================================== */}
+        <div className="lg:col-span-4 flex flex-col gap-4">
+          
+          {/* Card 1: "Test with Sandbox Store" Promo Card matching reference image */}
+          <div className="relative overflow-hidden rounded-2xl bg-[linear-gradient(135deg,#1e293b_0%,#0f172a_100%)] text-white p-5 shadow-sm">
+            <div className="flex flex-col gap-3 relative z-10">
+              <h3 className="text-sm font-bold text-white tracking-tight">
+                Test with Sandbox Store
+              </h3>
+              <p className="text-xs text-slate-300 leading-relaxed font-normal">
+                Shop, checkout and see how PayShield AI analyzes the transaction.
+              </p>
+              <button
+                onClick={() => onNavigateToTab && onNavigateToTab('checkout')}
+                className="mt-1 w-fit inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white text-blue-600 hover:bg-slate-50 text-xs font-bold transition-all shadow-sm cursor-pointer"
+              >
+                <span>Visit Sandbox Store</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* Shopping bag graphic illustration in bottom-right */}
+            <div className="absolute right-1 -bottom-1 pointer-events-none opacity-90">
+              <SandboxStoreIllustration className="w-24 h-24" />
+            </div>
           </div>
 
-          <div className="flex flex-col gap-2.5">
-            <span className={`inline-flex w-fit rounded-xl border px-3 py-1 text-xs font-medium font-mono ${healthStatus.badgeClass}`}>
-              ● {healthStatus.condition}
-            </span>
-            <p className="text-sm leading-relaxed text-slate-400">
-              Your store is protected by PayShield&apos;s real-time pre-capture firewall.{' '}
-              <span className="font-semibold text-slate-200">
-                {blockedTransactions.length} high-risk fraudulent checkouts
-              </span>{' '}
-              were intercepted prior to PayPal settlement, eliminating chargeback fees and payment fraud.
-            </p>
+          {/* Card 2: Quick Action Panel */}
+          <div className="rounded-2xl bg-white border border-[#e5edf8] p-5 shadow-xs flex flex-col gap-3">
+            <div>
+              <h3 className="text-sm font-bold text-[#0f172a]">
+                Quick Action
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Start a new investigation or explore the sandbox.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-2.5 pt-1">
+              {/* Button 1: Analyze a Transaction */}
+              <button
+                onClick={handleAnalyzeTransaction}
+                disabled={isSimulating}
+                className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs shadow-blue-500/20 transition-all cursor-pointer disabled:opacity-70"
+              >
+                <div className="flex items-center gap-2">
+                  <Search className={`w-3.5 h-3.5 ${isSimulating ? 'animate-spin' : ''}`} />
+                  <span>{isSimulating ? 'Analyzing Telemetry...' : 'Analyze a Transaction'}</span>
+                </div>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+
+              {/* Button 2: Go to Sandbox Store */}
+              <button
+                onClick={() => onNavigateToTab && onNavigateToTab('checkout')}
+                className="w-full flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-all cursor-pointer"
+              >
+                <ShoppingCart className="w-3.5 h-3.5 text-blue-600" />
+                <span>Go to Sandbox Store</span>
+              </button>
+            </div>
           </div>
+
+          {/* Card 3: System Status Panel */}
+          <div className="rounded-2xl bg-white border border-[#e5edf8] p-5 shadow-xs flex flex-col gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <h3 className="text-sm font-bold text-[#0f172a]">
+                  System Status
+                </h3>
+              </div>
+              <p className="text-xs font-medium text-emerald-600 mt-0.5">
+                All systems operational
+              </p>
+            </div>
+
+            {/* Service Status rows matching reference image */}
+            <div className="flex flex-col divide-y divide-slate-100 pt-1">
+              
+              <div className="py-2.5 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-700 font-bold text-xs shrink-0">
+                    P
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-xs font-semibold text-slate-800">PayPal Sandbox</span>
+                    <span className="text-[11px] text-emerald-600 font-medium">Connected</span>
+                  </div>
+                </div>
+                <Check className="w-4 h-4 text-emerald-500 stroke-[2.5]" />
+              </div>
+
+              <div className="py-2.5 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 shrink-0">
+                    <Activity className="w-4 h-4 text-slate-600" />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-xs font-semibold text-slate-800">AI Risk Engine</span>
+                    <span className="text-[11px] text-emerald-600 font-medium">Active</span>
+                  </div>
+                </div>
+                <Check className="w-4 h-4 text-emerald-500 stroke-[2.5]" />
+              </div>
+
+              <div className="py-2.5 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 shrink-0">
+                    <Database className="w-4 h-4 text-slate-600" />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-xs font-semibold text-slate-800">Database</span>
+                    <span className="text-[11px] text-emerald-600 font-medium">Healthy</span>
+                  </div>
+                </div>
+                <Check className="w-4 h-4 text-emerald-500 stroke-[2.5]" />
+              </div>
+
+            </div>
+          </div>
+
+          {/* Card 4: Need Help? Panel */}
+          <div
+            onClick={() => onNavigateToTab && onNavigateToTab('audit')}
+            className="rounded-2xl bg-white border border-[#e5edf8] p-4 shadow-xs flex items-center justify-between gap-3 hover:border-blue-200 hover:bg-slate-50/50 transition-all cursor-pointer group"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                <Lightbulb className="w-4.5 h-4.5" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-xs font-bold text-[#0f172a] group-hover:text-blue-600 transition-colors">
+                  Need help?
+                </span>
+                <span className="text-[11px] text-slate-400">
+                  Check the Activity log to see all recent actions and results.
+                </span>
+              </div>
+            </div>
+            <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all shrink-0" />
+          </div>
+
         </div>
 
-        <div className="flex items-center justify-center shrink-0">
-          <SecurityScoreDonut score={healthScore} size={135} />
-        </div>
-
-      </section>
-
-      {/* 3. Key Metrics (4 Bionis-styled cards) */}
-      <section className="flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-slate-200">Key Security Metrics</h2>
-          <span className="text-xs font-mono text-slate-400">{periodLabel} snapshot</span>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5">
-          <BionisMetricCard
-            label="Transactions Evaluated"
-            value={totalAnalyzed}
-            subValue="Real-time pre-capture"
-            trendText="↑ 100% inspected"
-            trendDirection="up"
-            icon={Layers}
-            iconBg="#3b82f6"
-            badgeText="Pre-Capture"
-          />
-          <BionisMetricCard
-            label="Needs Review"
-            value={reviewTransactions.length}
-            subValue="Held for inspection"
-            trendText={reviewTransactions.length > 0 ? "Flagged anomalies" : "All clean"}
-            trendDirection={reviewTransactions.length > 0 ? "neutral" : "up"}
-            icon={AlertTriangle}
-            iconBg="#f59e0b"
-            badgeText="Action Req."
-          />
-          <BionisMetricCard
-            label="High Risk Blocked"
-            value={blockedTransactions.length}
-            subValue="Zero false capture"
-            trendText={blockedTransactions.length > 0 ? `${blockedTransactions.length} Intercepted` : "0 Intercepted"}
-            trendDirection="down"
-            icon={ShieldAlert}
-            iconBg="#ef4444"
-            badgeText="Auto-Held"
-          />
-          <BionisMetricCard
-            label="Sandbox Captured"
-            value={`$${totalCapturedVolume.toFixed(2)}`}
-            subValue={`${capturedTransactions.length} safe settlements`}
-            trendText="PayPal Verified"
-            trendDirection="up"
-            icon={DollarSign}
-            iconBg="#10b981"
-            badgeText="Completed"
-          />
-        </div>
-      </section>
-
-      {/* 4. Visual Analytics Breakdown (2-Column Grid: Trend & Anomaly Breakdown) */}
-      <SecurityCharts
-        transactions={activeTxList}
-        periodLabel={periodLabel}
-      />
-
-      {/* 5. 3 Intelligence Cards (AI Predictions, Gateway Vitals, Recommended Actions) */}
-      <SecurityInsightCards
-        transactions={activeTxList}
-        onSelectTransaction={onSelectTransaction}
-        onSimulateOrder={handleSimulateTransaction}
-        isSimulating={isSimulating}
-      />
-
-      {/* 6. Transaction Stream Table (AG Grid Community) */}
-      <section className="flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-slate-200">Recent Transactions & Audit Stream</h2>
-          <span className="text-xs font-mono text-slate-400">AG Grid Community Edition</span>
-        </div>
-        <TransactionGrid
-          transactions={transactions}
-          onSelectTransaction={onSelectTransaction}
-          loading={loading}
-        />
-      </section>
+      </div>
 
     </div>
   );

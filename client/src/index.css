@@ -2,31 +2,32 @@
 
 @layer base {
   :root {
-    --bg-base: #060911;
-    --bg-surface-1: #0a0f1d;
-    --bg-surface-2: #10172a;
-    --bg-surface-3: #172036;
-    --border-subtle: #1e293b;
-    --border-strong: #334155;
-    --text-primary: #f8fafc;
-    --text-secondary: #94a3b8;
-    --text-muted: #64748b;
+    --bg-base: #f3f6fb;
+    --bg-surface: #ffffff;
+    --bg-surface-subtle: #f8fafc;
+    --border-subtle: #e2e8f0;
+    --border-card: #e5edf8;
     
-    --accent-cyan: #06b6d4;
-    --accent-cyan-light: #22d3ee;
-    --accent-blue: #3b82f6;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #94a3b8;
+    
+    --royal-blue: #2563eb;
+    --royal-blue-hover: #1d4ed8;
+    --royal-blue-light: #eff6ff;
+    --royal-blue-badge: #dbeafe;
 
-    --risk-allow-bg: #06281e;
-    --risk-allow-border: #065f46;
-    --risk-allow-text: #34d399;
+    --status-safe-bg: #ecfdf5;
+    --status-safe-text: #059669;
+    --status-safe-border: #a7f3d0;
 
-    --risk-review-bg: #2e1c07;
-    --risk-review-border: #78350f;
-    --risk-review-text: #fbbf24;
+    --status-review-bg: #fffbeb;
+    --status-review-text: #d97706;
+    --status-review-border: #fde68a;
 
-    --risk-block-bg: #2d0b12;
-    --risk-block-border: #7f1d1d;
-    --risk-block-text: #f87171;
+    --status-risk-bg: #fef2f2;
+    --status-risk-text: #dc2626;
+    --status-risk-border: #fecaca;
   }
 
   body {
@@ -41,20 +42,57 @@
   }
 }
 
-/* Custom scrollbars for data tables and logs */
+/* Smooth fade-in & upward motion animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.04);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 3s ease-in-out infinite;
+}
+
+/* Custom scrollbars */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #060911;
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
-  border-radius: 3px;
+  background: #cbd5e1;
+  border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #334155;
+  background: #94a3b8;
+}
+
+/* Accessible focus ring */
+*:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
 }
 
 /* Monospace font standard */

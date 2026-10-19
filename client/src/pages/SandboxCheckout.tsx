@@ -54,7 +54,7 @@ export const SandboxCheckout: React.FC<SandboxCheckoutProps> = ({ onOrderComplet
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const getPayloadForScenario = (): TransactionData => {
-    const orderId = `ORD-${Math.floor(1000 + Math.random() * 9000)}`;
+    const orderId = `PS-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
     if (selectedScenario === 'SAFE') {
       return {
@@ -194,28 +194,28 @@ export const SandboxCheckout: React.FC<SandboxCheckoutProps> = ({ onOrderComplet
   };
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
+    <div className="space-y-6 max-w-5xl mx-auto animate-fade-in-up pb-12">
       
       {/* Heading */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold text-slate-100 tracking-tight">
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
               Sandbox Store
             </h1>
-            <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300">
-              PayPal Sandbox Demo
+            <span className="text-[11px] font-semibold font-mono px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+              PayPal Orders v2 Demo
             </span>
           </div>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Test how PayShield intercepts risky orders before PayPal captures the payment.
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">
+            Test how PayShield intercepts risky orders in real time before PayPal captures the payment.
           </p>
         </div>
 
         {step !== 'IDLE' && (
           <button
             onClick={handleReset}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0a0f1d] hover:bg-[#10172a] text-slate-300 border border-[#1e293b] text-xs transition-colors self-start sm:self-auto"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-semibold shadow-xs transition-colors self-start sm:self-auto cursor-pointer"
           >
             <RefreshCw className="w-3.5 h-3.5" />
             <span>Reset Demo</span>
@@ -224,86 +224,101 @@ export const SandboxCheckout: React.FC<SandboxCheckoutProps> = ({ onOrderComplet
       </div>
 
       {errorMsg && (
-        <div className="p-3.5 rounded-xl bg-[#2d0b12] border border-[#7f1d1d] text-xs text-[#f87171]">
+        <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-xs font-medium text-rose-800 shadow-xs">
           <strong>Error: </strong> {errorMsg}
         </div>
       )}
 
-      {/* Scenario Selector */}
-      <div className="p-4 rounded-xl bg-[#0a0f1d] border border-[#1e293b] space-y-2.5">
-        <span className="text-xs font-semibold text-slate-300 block">
+      {/* Scenario Selector Card */}
+      <div className="p-5 rounded-2xl bg-white border border-[#e5edf8] space-y-3 shadow-xs">
+        <span className="text-xs font-bold text-slate-900 uppercase tracking-wider block">
           Choose a test customer scenario:
         </span>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <button
             onClick={() => { setSelectedScenario('SAFE'); handleReset(); }}
-            className={`p-3 rounded-lg border text-left transition-all ${
+            className={`p-4 rounded-xl border text-left transition-all cursor-pointer ${
               selectedScenario === 'SAFE'
-                ? 'bg-[#06281e] border-[#065f46] text-[#34d399]'
-                : 'bg-[#060911] border-[#1e293b] text-slate-300 hover:border-[#334155]'
+                ? 'bg-emerald-50/70 border-emerald-400 text-emerald-950 ring-2 ring-emerald-400/20 shadow-xs'
+                : 'bg-[#f8fafc] border-slate-200 text-slate-700 hover:border-slate-300'
             }`}
           >
-            <div className="font-semibold text-xs">Normal Customer (Safe)</div>
-            <div className="text-[11px] text-slate-400 mt-0.5">Legitimate IP, matching addresses</div>
+            <div className="font-bold text-xs flex items-center justify-between">
+              <span>Normal Customer</span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-100 text-emerald-800 font-semibold">Safe</span>
+            </div>
+            <div className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+              Legitimate residential US IP, matching addresses, established account history.
+            </div>
           </button>
 
           <button
             onClick={() => { setSelectedScenario('REVIEW'); handleReset(); }}
-            className={`p-3 rounded-lg border text-left transition-all ${
+            className={`p-4 rounded-xl border text-left transition-all cursor-pointer ${
               selectedScenario === 'REVIEW'
-                ? 'bg-[#2e1c07] border-[#78350f] text-[#fbbf24]'
-                : 'bg-[#060911] border-[#1e293b] text-slate-300 hover:border-[#334155]'
+                ? 'bg-amber-50/70 border-amber-400 text-amber-950 ring-2 ring-amber-400/20 shadow-xs'
+                : 'bg-[#f8fafc] border-slate-200 text-slate-700 hover:border-slate-300'
             }`}
           >
-            <div className="font-semibold text-xs">Uncertain Buyer (Review)</div>
-            <div className="text-[11px] text-slate-400 mt-0.5">Commercial VPN, address mismatch</div>
+            <div className="font-bold text-xs flex items-center justify-between">
+              <span>Uncertain Buyer</span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-100 text-amber-800 font-semibold">Review</span>
+            </div>
+            <div className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+              Commercial VPN active, alternate shipping destination, young account tenure.
+            </div>
           </button>
 
           <button
             onClick={() => { setSelectedScenario('ATTACK'); handleReset(); }}
-            className={`p-3 rounded-lg border text-left transition-all ${
+            className={`p-4 rounded-xl border text-left transition-all cursor-pointer ${
               selectedScenario === 'ATTACK'
-                ? 'bg-[#2d0b12] border-[#7f1d1d] text-[#f87171]'
-                : 'bg-[#060911] border-[#1e293b] text-slate-300 hover:border-[#334155]'
+                ? 'bg-rose-50/70 border-rose-400 text-rose-950 ring-2 ring-rose-400/20 shadow-xs'
+                : 'bg-[#f8fafc] border-slate-200 text-slate-700 hover:border-slate-300'
             }`}
           >
-            <div className="font-semibold text-xs">Suspicious Actor (Attack)</div>
-            <div className="text-[11px] text-slate-400 mt-0.5">Tor exit node, velocity attempts</div>
+            <div className="font-bold text-xs flex items-center justify-between">
+              <span>Suspicious Actor</span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] bg-rose-100 text-rose-800 font-semibold">High Risk</span>
+            </div>
+            <div className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+              Tor exit node in Netherlands, disposable burner email, 4 rapid failed velocity attempts.
+            </div>
           </button>
         </div>
       </div>
 
       {/* Main Checkout Layout */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
         
-        {/* Left: Product & Buyer Preview */}
+        {/* Left: Product & Buyer Preview (2 Cols) */}
         <div className="md:col-span-2 space-y-4">
           
           {/* Select Product */}
-          <div className="p-4 rounded-xl bg-[#0a0f1d] border border-[#1e293b] space-y-3">
-            <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider block">
+          <div className="p-5 rounded-2xl bg-white border border-[#e5edf8] space-y-3 shadow-xs">
+            <span className="text-xs font-bold text-slate-900 uppercase tracking-wider block">
               1. Select Item
             </span>
 
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               {PRODUCTS.map((prod) => {
                 const isSelected = selectedProduct.id === prod.id;
                 return (
                   <div
                     key={prod.id}
                     onClick={() => { setSelectedProduct(prod); handleReset(); }}
-                    className={`p-3 rounded-lg border cursor-pointer flex items-center justify-between transition-colors ${
+                    className={`p-3.5 rounded-xl border cursor-pointer flex items-center justify-between transition-all ${
                       isSelected
-                        ? 'bg-[#10172a] border-cyan-800/80 text-white'
-                        : 'bg-[#060911] border-[#1e293b] text-slate-300 hover:border-[#334155]'
+                        ? 'bg-blue-50/60 border-blue-400 ring-2 ring-blue-400/20 shadow-xs'
+                        : 'bg-[#f8fafc] border-slate-200 text-slate-700 hover:border-slate-300'
                     }`}
                   >
                     <div>
-                      <div className="text-xs font-semibold">{prod.name}</div>
-                      <div className="text-[11px] text-slate-400">{prod.description}</div>
+                      <div className="text-xs font-bold text-slate-900">{prod.name}</div>
+                      <div className="text-[11px] text-slate-500 mt-0.5">{prod.description}</div>
                     </div>
-                    <div className="text-xs font-bold font-mono text-cyan-400 shrink-0 ml-3">
+                    <div className="text-sm font-bold font-mono text-blue-600 shrink-0 ml-3">
                       ${prod.price.toFixed(2)}
                     </div>
                   </div>
@@ -313,58 +328,58 @@ export const SandboxCheckout: React.FC<SandboxCheckoutProps> = ({ onOrderComplet
           </div>
 
           {/* Customer Details Preview */}
-          <div className="p-4 rounded-xl bg-[#0a0f1d] border border-[#1e293b] space-y-2">
-            <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider block">
-              2. Simulated Customer Information
+          <div className="p-5 rounded-2xl bg-white border border-[#e5edf8] space-y-2 shadow-xs">
+            <span className="text-xs font-bold text-slate-900 uppercase tracking-wider block">
+              2. Simulated Customer Telemetry
             </span>
 
-            <div className="p-3 rounded-lg bg-[#060911] border border-[#1e293b] text-xs font-mono space-y-1 text-slate-300">
+            <div className="p-4 rounded-xl bg-[#f8fafc] border border-slate-200 text-xs font-mono space-y-2 text-slate-700">
               <div className="flex justify-between">
-                <span className="text-slate-400">Buyer Name:</span>
-                <span>{selectedScenario === 'SAFE' ? 'Sarah Connor' : selectedScenario === 'REVIEW' ? 'Liam Neeson' : 'Anonymous Actor'}</span>
+                <span className="text-slate-400 font-sans">Buyer Name:</span>
+                <span className="font-semibold text-slate-900">{selectedScenario === 'SAFE' ? 'Sarah Connor' : selectedScenario === 'REVIEW' ? 'Liam Neeson' : 'Anonymous Actor'}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Email:</span>
-                <span>{selectedScenario === 'SAFE' ? 'sarah.connor@gmail.com' : selectedScenario === 'REVIEW' ? 'liam.neeson@outlook.com' : 'test_attacker@tempmail.com'}</span>
+                <span className="text-slate-400 font-sans">Email Address:</span>
+                <span className="font-semibold">{selectedScenario === 'SAFE' ? 'sarah.connor@gmail.com' : selectedScenario === 'REVIEW' ? 'liam.neeson@outlook.com' : 'test_attacker@tempmail.com'}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Simulated Location:</span>
-                <span>{selectedScenario === 'SAFE' ? 'United States (Residential)' : selectedScenario === 'REVIEW' ? 'United States (VPN)' : 'Netherlands (Tor Node)'}</span>
+                <span className="text-slate-400 font-sans">Network Origin:</span>
+                <span className="font-semibold">{selectedScenario === 'SAFE' ? 'United States (Residential)' : selectedScenario === 'REVIEW' ? 'United States (Commercial VPN)' : 'Netherlands (Tor Exit Node)'}</span>
               </div>
             </div>
           </div>
 
         </div>
 
-        {/* Right: Order Summary & Action */}
+        {/* Right: Order Summary & Action (1 Col) */}
         <div className="md:col-span-1 space-y-4">
-          <div className="p-5 rounded-xl bg-[#0a0f1d] border border-[#1e293b] space-y-4">
-            <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider block">
+          <div className="p-5 rounded-2xl bg-white border border-[#e5edf8] space-y-4 shadow-xs">
+            <span className="text-xs font-bold text-slate-900 uppercase tracking-wider block">
               Order Summary
             </span>
 
-            <div className="space-y-2 text-xs border-b border-[#1e293b] pb-3">
-              <div className="flex justify-between text-slate-300">
+            <div className="space-y-2.5 text-xs border-b border-slate-100 pb-3">
+              <div className="flex justify-between text-slate-700">
                 <span>{selectedProduct.name}</span>
-                <span className="font-mono">${selectedProduct.price.toFixed(2)}</span>
+                <span className="font-mono font-semibold">${selectedProduct.price.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-slate-400">
                 <span>Shipping</span>
-                <span>Free</span>
+                <span className="text-emerald-600 font-semibold">Free</span>
               </div>
             </div>
 
-            <div className="flex justify-between text-sm font-bold text-slate-100">
+            <div className="flex justify-between text-sm font-bold text-slate-900">
               <span>Total</span>
-              <span className="font-mono text-cyan-400">${selectedProduct.price.toFixed(2)} USD</span>
+              <span className="font-mono text-blue-600">${selectedProduct.price.toFixed(2)} USD</span>
             </div>
 
-            {/* Gateway Actions */}
+            {/* Gateway Action Steps */}
             {step === 'IDLE' && (
               <button
                 onClick={handleStartCheckout}
                 disabled={isProcessing}
-                className="w-full py-2.5 px-4 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 transition-colors shadow-sm"
+                className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center justify-center gap-2 transition-colors shadow-xs shadow-blue-500/20 cursor-pointer"
               >
                 <Lock className="w-3.5 h-3.5" />
                 <span>Pay with PayPal (Sandbox)</span>
@@ -372,29 +387,29 @@ export const SandboxCheckout: React.FC<SandboxCheckoutProps> = ({ onOrderComplet
             )}
 
             {step === 'EVALUATING' && (
-              <div className="p-3 rounded-lg bg-[#060911] border border-[#1e293b] text-center space-y-2">
-                <div className="w-5 h-5 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-                <div className="text-xs text-slate-300 font-medium">Pre-Capture Risk Analysis</div>
-                <div className="text-[11px] text-slate-400">Checking telemetry before PayPal authorization...</div>
+              <div className="p-4 rounded-xl bg-blue-50/70 border border-blue-200 text-center space-y-2">
+                <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
+                <div className="text-xs text-blue-950 font-bold">Pre-Capture Risk Analysis</div>
+                <div className="text-[11px] text-blue-700">Evaluating telemetry before PayPal authorization...</div>
               </div>
             )}
 
             {step === 'PAYPAL_READY' && (
               <div className="space-y-3">
-                <div className="p-3 rounded-lg bg-[#06281e] border border-[#065f46] text-[#34d399] text-xs space-y-1">
-                  <div className="font-bold flex items-center gap-1.5">
-                    <ShieldCheck className="w-4 h-4" />
+                <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs space-y-1">
+                  <div className="font-bold flex items-center gap-1.5 text-emerald-800">
+                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
                     <span>Security Check Passed</span>
                   </div>
-                  <div className="text-[11px] text-slate-300">
-                    Low risk score ({assessmentResult?.overallScore || 15}/100). Ready to capture.
+                  <div className="text-[11px] text-emerald-700">
+                    Low risk score ({assessmentResult?.overallScore || 15}/100). Safe to capture.
                   </div>
                 </div>
 
                 <button
                   onClick={handleCapture}
                   disabled={isProcessing}
-                  className="w-full py-2.5 px-4 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors shadow-sm"
+                  className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors shadow-xs cursor-pointer"
                 >
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   <span>{isProcessing ? 'Capturing...' : 'Authorize & Capture Payment'}</span>
@@ -403,49 +418,49 @@ export const SandboxCheckout: React.FC<SandboxCheckoutProps> = ({ onOrderComplet
             )}
 
             {step === 'GATE_BLOCKED' && (
-              <div className="p-3.5 rounded-lg bg-[#2d0b12] border border-[#7f1d1d] text-[#f87171] text-xs space-y-2">
-                <div className="font-bold flex items-center gap-1.5">
-                  <ShieldAlert className="w-4 h-4" />
+              <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 text-xs space-y-2.5">
+                <div className="font-bold flex items-center gap-1.5 text-rose-800">
+                  <ShieldAlert className="w-4 h-4 text-rose-600" />
                   <span>Payment Held Pre-Capture</span>
                 </div>
-                <p className="text-[11px] text-slate-300 leading-relaxed">
-                  High-risk signals detected ({assessmentResult?.overallScore || 85}/100). The transaction was stopped before PayPal authorization.
+                <p className="text-[11px] text-rose-700 leading-relaxed font-normal">
+                  High-risk signals detected ({assessmentResult?.overallScore || 85}/100). The transaction was arrested before PayPal capture.
                 </p>
                 {currentOrderId && (
                   <button
                     onClick={() => onOrderCompleted(currentOrderId)}
-                    className="w-full mt-1 py-1.5 px-3 rounded bg-[#10172a] hover:bg-[#1e293b] text-xs text-cyan-400 font-semibold border border-cyan-800 flex items-center justify-center gap-1 transition-colors"
+                    className="w-full mt-1 py-2 px-3 rounded-xl bg-white hover:bg-rose-100 text-xs text-rose-700 font-bold border border-rose-300 flex items-center justify-center gap-1 transition-colors cursor-pointer"
                   >
                     <span>View Investigation</span>
-                    <ArrowRight className="w-3 h-3" />
+                    <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 )}
               </div>
             )}
 
             {step === 'CAPTURED' && (
-              <div className="p-3.5 rounded-lg bg-[#06281e] border border-[#065f46] text-[#34d399] text-xs space-y-2">
-                <div className="font-bold flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4" />
+              <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs space-y-2.5">
+                <div className="font-bold flex items-center gap-1.5 text-emerald-800">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                   <span>Payment Captured!</span>
                 </div>
-                <p className="text-[11px] text-slate-300">
+                <p className="text-[11px] text-emerald-700 font-normal">
                   Transaction verified and captured in PayPal Sandbox.
                 </p>
                 {currentOrderId && (
                   <button
                     onClick={() => onOrderCompleted(currentOrderId)}
-                    className="w-full mt-1 py-1.5 px-3 rounded bg-[#10172a] hover:bg-[#1e293b] text-xs text-cyan-400 font-semibold border border-cyan-800 flex items-center justify-center gap-1 transition-colors"
+                    className="w-full mt-1 py-2 px-3 rounded-xl bg-white hover:bg-emerald-100 text-xs text-emerald-700 font-bold border border-emerald-300 flex items-center justify-center gap-1 transition-colors cursor-pointer"
                   >
                     <span>View Investigation</span>
-                    <ArrowRight className="w-3 h-3" />
+                    <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 )}
               </div>
             )}
 
-            <div className="text-[10px] text-slate-500 text-center font-mono pt-1">
-              PayPal Sandbox REST API v2 • Safe Test Mode
+            <div className="text-[11px] text-slate-400 text-center font-mono pt-1">
+              PayPal Orders v2 REST API • Safe Sandbox Mode
             </div>
           </div>
         </div>

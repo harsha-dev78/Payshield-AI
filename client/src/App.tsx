@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Navbar } from './components/Navbar.js';
+import { Sidebar } from './components/Sidebar.js';
+import { TopBar } from './components/TopBar.js';
 import { Dashboard } from './pages/Dashboard.js';
 import { Investigation } from './pages/Investigation.js';
 import { SandboxCheckout } from './pages/SandboxCheckout.js';
@@ -7,7 +8,6 @@ import { AuditTrail } from './pages/AuditTrail.js';
 import { Settings } from './pages/Settings.js';
 import type { TransactionData } from './types/index.js';
 import { api } from './services/api.js';
-import { Shield } from 'lucide-react';
 
 export function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -15,6 +15,8 @@ export function App() {
   const [transactions, setTransactions] = useState<TransactionData[]>([]);
   const [systemStatus, setSystemStatus] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [searchFilter, setSearchFilter] = useState('');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     loadInitialData();
@@ -57,70 +59,67 @@ export function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#070b14] text-slate-100 flex flex-col font-['Inter',sans-serif]">
+    <div className="min-h-screen bg-[#f3f6fb] text-slate-800 flex font-['Inter',sans-serif]">
       
-      {/* Top Navigation */}
-      <Navbar
+      {/* 1. Left Sidebar Navigation matching reference image */}
+      <Sidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         systemStatus={systemStatus}
+        isMobileOpen={isMobileMenuOpen}
+        onCloseMobile={() => setIsMobileMenuOpen(false)}
       />
 
-      {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {activeTab === 'dashboard' && (
-          <Dashboard
-            transactions={transactions}
-            onSelectTransaction={handleSelectTransaction}
-            onRefresh={loadInitialData}
-            loading={loading}
-          />
-        )}
+      {/* 2. Main Workspace Layout */}
+      <div className="flex-1 flex flex-col md:pl-64 min-w-0 transition-all duration-300">
+        
+        {/* Top Header Bar matching reference image */}
+        <TopBar
+          onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          searchQuery={searchFilter}
+          onSearchChange={setSearchFilter}
+          unreadCount={2}
+        />
 
-        {activeTab === 'investigation' && (
-          <Investigation
-            orderId={selectedOrderId || (transactions[0]?.orderId || 'ORD-3199')}
-            onBack={() => setActiveTab('dashboard')}
-            onRefreshList={loadInitialData}
-          />
-        )}
+        {/* Dynamic Page Content */}
+        <main className="flex-1 w-full px-4 sm:px-8 py-6 max-w-7xl">
+          {activeTab === 'dashboard' && (
+            <Dashboard
+              transactions={transactions}
+              onSelectTransaction={handleSelectTransaction}
+              onRefresh={loadInitialData}
+              onNavigateToTab={setActiveTab}
+              loading={loading}
+              searchFilter={searchFilter}
+            />
+          )}
 
-        {activeTab === 'checkout' && (
-          <SandboxCheckout
-            onOrderCompleted={handleOrderCompleted}
-          />
-        )}
+          {activeTab === 'investigation' && (
+            <Investigation
+              orderId={selectedOrderId || (transactions[0]?.orderId || 'ORD-3199')}
+              onBack={() => setActiveTab('dashboard')}
+              onRefreshList={loadInitialData}
+            />
+          )}
 
-        {activeTab === 'audit' && (
-          <AuditTrail
-            onInspectOrder={handleSelectTransaction}
-          />
-        )}
+          {activeTab === 'checkout' && (
+            <SandboxCheckout
+              onOrderCompleted={handleOrderCompleted}
+            />
+          )}
 
-        {activeTab === 'settings' && (
-          <Settings />
-        )}
-      </main>
+          {activeTab === 'audit' && (
+            <AuditTrail
+              onInspectOrder={handleSelectTransaction}
+            />
+          )}
 
-      {/* Footer with Hackathon & Sponsor Attribution */}
-      <footer className="border-t border-slate-800/80 bg-[#05080f] py-4 text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <Shield className="w-4 h-4 text-cyan-400" />
-            <span className="font-semibold text-slate-400">PayShield AI</span>
-            <span>— PayPal AI Hackathon Submission ($0 Budget Architecture)</span>
-          </div>
-          <div className="flex items-center gap-3 font-mono text-[11px] text-slate-400">
-            <span>PayPal Sandbox v2</span>
-            <span>•</span>
-            <span className="text-cyan-400">AG Grid Community</span>
-            <span>•</span>
-            <span className="text-purple-400">APIMatic Spec</span>
-            <span>•</span>
-            <span className="text-blue-400">Render Blueprint</span>
-          </div>
-        </div>
-      </footer>
+          {activeTab === 'settings' && (
+            <Settings />
+          )}
+        </main>
+
+      </div>
 
     </div>
   );

@@ -1,63 +1,80 @@
 import React from 'react';
-import { ShieldCheck, AlertTriangle, ShieldAlert, HelpCircle } from 'lucide-react';
 import type { RiskTier } from '../types/index.js';
 
 interface RiskBadgeProps {
   tier?: RiskTier | 'UNASSESSED' | string;
   score?: number | null;
   size?: 'sm' | 'md' | 'lg';
+  variant?: 'pill' | 'detailed';
 }
 
-export const RiskBadge: React.FC<RiskBadgeProps> = ({ tier, score, size = 'md' }) => {
-  const getStyles = () => {
-    switch (tier) {
+export const RiskBadge: React.FC<RiskBadgeProps> = ({ 
+  tier, 
+  score, 
+  size = 'md',
+  variant = 'pill'
+}) => {
+  const normalizedTier = (tier || '').toUpperCase();
+  const sizeClass = size === 'sm' ? 'text-[10px] px-2 py-0.5' : size === 'lg' ? 'text-sm px-3.5 py-1' : 'text-xs px-2.5 py-0.5';
+
+  const getStyle = () => {
+    switch (normalizedTier) {
       case 'ALLOW':
+      case 'LOW':
         return {
-          bg: 'bg-[#06281e] border-[#065f46] text-[#34d399]',
-          dot: 'bg-emerald-400',
-          icon: ShieldCheck,
-          label: 'Low Risk',
+          bg: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+          dot: 'bg-emerald-500',
+          label: 'Low',
+          fullLabel: 'Low Risk',
         };
       case 'REVIEW':
+      case 'MEDIUM':
         return {
-          bg: 'bg-[#2e1c07] border-[#78350f] text-[#fbbf24]',
-          dot: 'bg-amber-400',
-          icon: AlertTriangle,
-          label: 'Needs Review',
+          bg: 'bg-amber-50 text-amber-700 border-amber-200',
+          dot: 'bg-amber-500',
+          label: 'Medium',
+          fullLabel: 'Needs Review',
         };
       case 'BLOCK':
+      case 'HIGH':
         return {
-          bg: 'bg-[#2d0b12] border-[#7f1d1d] text-[#f87171]',
-          dot: 'bg-rose-400',
-          icon: ShieldAlert,
-          label: 'High Risk (Block)',
+          bg: 'bg-rose-50 text-rose-700 border-rose-200',
+          dot: 'bg-rose-500',
+          label: 'High',
+          fullLabel: 'High Risk',
         };
       default:
         return {
-          bg: 'bg-[#0a0f1d] border-[#1e293b] text-slate-400',
-          dot: 'bg-slate-500',
-          icon: HelpCircle,
+          bg: 'bg-slate-50 text-slate-600 border-slate-200',
+          dot: 'bg-slate-400',
           label: 'Unassessed',
+          fullLabel: 'Unassessed',
         };
     }
   };
 
-  const style = getStyles();
-  const Icon = style.icon;
+  const style = getStyle();
 
-  const sizeClasses = {
-    sm: 'text-[11px] px-2 py-0.5 gap-1.5 font-medium',
-    md: 'text-xs px-2.5 py-1 gap-1.5 font-medium',
-    lg: 'text-xs px-3 py-1.5 gap-2 font-semibold',
-  };
+  if (variant === 'pill') {
+    return (
+      <span className={`inline-flex items-center justify-center font-medium rounded-full border ${sizeClass} ${style.bg}`}>
+        <span>{style.label}</span>
+        {score !== undefined && score !== null && (
+          <span className="font-mono text-[10px] ml-1 opacity-80">
+            ({score})
+          </span>
+        )}
+      </span>
+    );
+  }
 
   return (
-    <span className={`inline-flex items-center rounded-md border tracking-tight ${style.bg} ${sizeClasses[size]}`}>
-      <Icon className={size === 'sm' ? 'w-3 h-3' : size === 'lg' ? 'w-4 h-4' : 'w-3.5 h-3.5'} />
-      <span>{style.label}</span>
+    <span className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold ${style.bg}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${style.dot}`} />
+      <span>{style.fullLabel}</span>
       {score !== undefined && score !== null && (
-        <span className="font-mono font-bold ml-0.5 px-1 py-0.2 bg-black/40 rounded border border-white/10 text-[10px]">
-          {score}
+        <span className="font-mono text-[11px] font-bold ml-1 px-1.5 py-0.5 rounded bg-white/80 border border-slate-200">
+          {score}/100
         </span>
       )}
     </span>
