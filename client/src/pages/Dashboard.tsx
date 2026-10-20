@@ -20,6 +20,7 @@ import { ShieldIllustration } from '../components/illustrations/ShieldIllustrati
 import { SandboxStoreIllustration } from '../components/illustrations/SandboxStoreIllustration.js';
 import { AnalyzeTransactionModal } from '../components/AnalyzeTransactionModal.js';
 import type { TransactionData } from '../types/index.js';
+import { useAuth } from '../context/AuthContext.js';
 
 interface DashboardProps {
   transactions: TransactionData[];
@@ -40,11 +41,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
 }) => {
   const [isAnalyzeModalOpen, setIsAnalyzeModalOpen] = useState(false);
   const [simulationSuccess, setSimulationSuccess] = useState<string | null>(null);
+  const { isAdmin } = useAuth();
 
-  // Time-based greeting matching reference image
+  // Dynamic role-aware greeting
   const greeting = useMemo(() => {
-    return 'Good morning, John! 👋';
-  }, []);
+    return isAdmin ? 'Welcome back, Merchant Admin! 🛡️' : 'Welcome, Guest Evaluator! 👋';
+  }, [isAdmin]);
 
   // Filter transactions by optional search
   const filteredTransactions = useMemo(() => {
@@ -118,6 +120,19 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <p className="text-xs sm:text-sm text-slate-500 leading-relaxed font-normal">
                 PayShield AI helps you detect risky transactions, understand the reasons, and take the right action — all in one place.
               </p>
+              {!isAdmin ? (
+                <div className="mt-1 flex items-center gap-1.5 self-start">
+                  <span className="text-[11px] font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-full">
+                    Demo Mode Active · 1-Click Role Switcher in Top Bar
+                  </span>
+                </div>
+              ) : (
+                <div className="mt-1 flex items-center gap-1.5 self-start">
+                  <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+                    🛡️ Merchant Administrator · Full Decision Authority
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Shield Illustration matching right side of banner */}

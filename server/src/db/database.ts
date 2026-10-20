@@ -84,6 +84,10 @@ for (const p of schemaCandidates) {
 
 db.exec(schema);
 
+export const SYNTHETIC_BENCHMARK_ORDER_IDS = new Set([
+  'ORD-7102', 'ORD-9430', 'ORD-3199', 'ORD-8821', 
+  'ORD-4015', 'ORD-6204', 'ORD-1192', 'ORD-5541'
+]);
 
 export const dbService = {
   // Save or update transaction
@@ -121,9 +125,11 @@ export const dbService = {
     });
   },
 
-  getTransaction(orderId: string): (TransactionData & { paymentStatus: string; paypalOrderId?: string; paypalCaptureId?: string }) | null {
+  getTransaction(orderId: string): (TransactionData & { paymentStatus: string; paypalOrderId?: string; paypalCaptureId?: string; isSynthetic?: boolean }) | null {
     const row = db.prepare('SELECT * FROM transactions WHERE order_id = ?').get(orderId) as any;
     if (!row) return null;
+
+    const isSynthetic = SYNTHETIC_BENCHMARK_ORDER_IDS.has(row.order_id) || Boolean(row.order_id?.startsWith('ORD-SYNTH-'));
 
     return {
       orderId: row.order_id,
@@ -140,6 +146,7 @@ export const dbService = {
       paymentStatus: row.payment_status,
       paypalOrderId: row.paypal_order_id || undefined,
       paypalCaptureId: row.paypal_capture_id || undefined,
+      isSynthetic,
     };
   },
 
@@ -162,6 +169,8 @@ export const dbService = {
         telemetry = {};
       }
 
+      const isSynthetic = SYNTHETIC_BENCHMARK_ORDER_IDS.has(r.order_id) || Boolean(r.order_id?.startsWith('ORD-SYNTH-'));
+
       return {
         orderId: r.order_id,
         amount: r.amount,
@@ -180,6 +189,7 @@ export const dbService = {
         riskTier: r.tier || 'UNASSESSED',
         confidence: r.confidence !== null ? r.confidence : null,
         paypalOrderId: r.paypal_order_id,
+        isSynthetic,
       };
     });
   },

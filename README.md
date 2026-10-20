@@ -112,6 +112,7 @@ To maintain absolute transparency, here is the exact breakdown of implemented fe
 - [x] **Tamper-Evident SQLite Audit Ledger:** Immutable event logs with actor attribution (`SYSTEM_AGENT` vs `MERCHANT_ANALYST`), timestamps, and JSON diffs.
 - [x] **APIMatic Contract Validator:** In-app inspection suite verifying PayPal v2 payloads against APIMatic schemas.
 - [x] **Forensic Report Modal:** Printable, formatted PDF-style investigation report with executive summaries.
+- [x] **Dual-Mode Role Governance & 1-Click Hackathon Switcher:** Instant toggling between **Demo Evaluator** (zero-friction evaluation) and **Merchant Administrator** (privileged decision overrides) with dataset distinction badges (`[Demo]` vs `[Live]`).
 - [x] **Zero-Cost Render Blueprint:** Single-command cloud deployment via [`render.yaml`](./render.yaml).
 
 ### Planned Roadmap Features (Future Scope)

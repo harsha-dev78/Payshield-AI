@@ -40,6 +40,7 @@ export interface TransactionData {
   items: OrderItem[];
   telemetry: CustomerTelemetry;
   createdAt: string;
+  isSynthetic?: boolean;
 }
 
 export interface RiskSignal {
@@ -86,7 +87,7 @@ export interface AuditRecord {
   transactionId: string;
   timestamp: string;
   action: 'RISK_ASSESSED' | 'ORDER_CREATED' | 'BUYER_APPROVED' | 'PAYMENT_CAPTURED' | 'PAYMENT_BLOCKED' | 'MERCHANT_OVERRIDE';
-  actor: 'SYSTEM_RISK_ENGINE' | 'PAYPAL_GATEWAY' | 'MERCHANT_ADMIN' | 'BUYER';
+  actor: 'SYSTEM_RISK_ENGINE' | 'PAYPAL_GATEWAY' | 'MERCHANT_ADMIN' | 'BUYER' | 'GUEST_JUDGE';
   details: Record<string, unknown>;
   policyVersion: string;
 }

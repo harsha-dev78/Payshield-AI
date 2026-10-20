@@ -3,6 +3,21 @@ import type { TransactionData, RiskAssessment, AuditRecord, SystemStatus, MLPred
 
 const API_BASE = (import.meta as any).env?.VITE_API_URL ? `${(import.meta as any).env.VITE_API_URL}/api` : '/api';
 
+function getAuthHeaders(): Record<string, string> {
+  try {
+    const role = localStorage.getItem('payshield_auth_role') || 'GUEST_JUDGE';
+    return {
+      'x-actor-role': role,
+      'x-actor-name': role === 'MERCHANT_ADMIN' ? 'Merchant Admin' : 'Demo Evaluator',
+    };
+  } catch {
+    return {
+      'x-actor-role': 'GUEST_JUDGE',
+      'x-actor-name': 'Demo Evaluator',
+    };
+  }
+}
+
 export const api = {
   async getHealth(): Promise<SystemStatus> {
     const res = await fetch(`${API_BASE}/health`);
@@ -31,7 +46,7 @@ export const api = {
   async evaluateTransaction(tx: TransactionData): Promise<{ orderId: string; assessment: RiskAssessment; status: string }> {
     const res = await fetch(`${API_BASE}/orders/evaluate`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(tx),
     });
     if (!res.ok) {
@@ -44,7 +59,7 @@ export const api = {
   async overrideTransaction(orderId: string, action: 'ALLOW' | 'BLOCK', notes?: string) {
     const res = await fetch(`${API_BASE}/orders/${orderId}/override`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify({ action, notes }),
     });
     if (!res.ok) throw new Error('Failed to apply merchant override');

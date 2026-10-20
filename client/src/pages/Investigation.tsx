@@ -20,6 +20,7 @@ import { RiskBadge } from '../components/RiskBadge.js';
 import { InvestigationReportModal } from '../components/InvestigationReportModal.js';
 import type { TransactionData, RiskAssessment, MLPredictionResult, AuditRecord } from '../types/index.js';
 import { api } from '../services/api.js';
+import { useAuth } from '../context/AuthContext.js';
 
 interface InvestigationProps {
   orderId: string;
@@ -28,6 +29,7 @@ interface InvestigationProps {
 }
 
 export const Investigation: React.FC<InvestigationProps> = ({ orderId, onBack, onRefreshList }) => {
+  const { isAdmin, loginAsAdmin } = useAuth();
   const [data, setData] = useState<{
     transaction: TransactionData;
     assessment: RiskAssessment;
@@ -65,6 +67,10 @@ export const Investigation: React.FC<InvestigationProps> = ({ orderId, onBack, o
   }, [loadOrderDetails]);
 
   const handleOverride = async (action: 'ALLOW' | 'BLOCK') => {
+    if (!isAdmin) {
+      setActionMsg('⚠️ Merchant Administrator authority is required to override fraud decisions. Use the "Elevate to Merchant Admin" button below to enable.');
+      return;
+    }
     setIsSubmitting(true);
     try {
       await api.overrideTransaction(orderId, action, overrideNotes || `Merchant decision: ${action === 'ALLOW' ? 'Approved' : 'Blocked'}`);
@@ -187,9 +193,20 @@ export const Investigation: React.FC<InvestigationProps> = ({ orderId, onBack, o
       {/* ======================================================== */}
       <div className="rounded-2xl bg-white border border-[#e5edf8] p-6 shadow-xs">
         <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-100">
-          <span className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-            Order Summary
-          </span>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+              Order Summary
+            </span>
+            {tx.isSynthetic ? (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200" title="Pre-configured synthetic benchmark transaction">
+                Simulated Benchmark Dataset
+              </span>
+            ) : (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200" title="Generated via Storefront Checkout">
+                Live Storefront Checkout
+              </span>
+            )}
+          </div>
           <span className="text-xs text-slate-400 font-mono flex items-center gap-1">
             <Clock className="w-3.5 h-3.5" />
             <span>{new Date(tx.createdAt).toLocaleString()}</span>
@@ -342,6 +359,25 @@ export const Investigation: React.FC<InvestigationProps> = ({ orderId, onBack, o
         <p className="text-xs text-slate-600 leading-relaxed">
           {rec.nextStep}
         </p>
+
+        {/* Role Notice & 1-Click Elevation Prompt for Demo Evaluators */}
+        {!isAdmin && (
+          <div className="p-3.5 rounded-xl bg-blue-50/80 border border-blue-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2.5">
+              <span className="text-base shrink-0">🛡️</span>
+              <span className="text-slate-700 leading-normal">
+                You are currently exploring in <strong>Demo Evaluator</strong> mode. Override authority is restricted to <strong>Merchant Administrators</strong>.
+              </span>
+            </div>
+            <button
+              onClick={loginAsAdmin}
+              className="shrink-0 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>Elevate to Merchant Admin (1-Click)</span>
+            </button>
+          </div>
+        )}
 
         {/* Merchant Decision Buttons */}
         <div className="pt-3 border-t border-slate-100 space-y-3">

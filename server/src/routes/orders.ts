@@ -86,15 +86,21 @@ ordersRouter.post('/:id/override', (req: Request, res: Response) => {
     const newStatus = action === 'ALLOW' ? 'PENDING' : 'BLOCKED';
     dbService.updatePaymentStatus(orderId, newStatus);
 
+    const actorRole = (req.headers['x-actor-role'] as string) || 'MERCHANT_ADMIN';
+    const actorName = (req.headers['x-actor-name'] as string) || (actorRole === 'MERCHANT_ADMIN' ? 'Merchant Administrator' : 'Demo Evaluator');
+    const actor = actorRole === 'GUEST_JUDGE' ? 'GUEST_JUDGE' : 'MERCHANT_ADMIN';
+
     dbService.logAudit(
       orderId,
       'MERCHANT_OVERRIDE',
-      'MERCHANT_ADMIN',
+      actor,
       {
         priorStatus: tx.paymentStatus,
         newStatus,
         overrideAction: action,
         merchantNotes: notes || 'Manual merchant review decision',
+        actingUser: actorName,
+        authRole: actorRole,
       }
     );
 

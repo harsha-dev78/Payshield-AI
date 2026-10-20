@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Search, Bell, ChevronDown, Menu, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { Search, Bell, ChevronDown, Menu, CheckCircle2, ShieldAlert, ShieldCheck, UserCheck } from 'lucide-react';
+import { useAuth } from '../context/AuthContext.js';
 
 interface TopBarProps {
   onToggleMobileMenu?: () => void;
@@ -14,6 +15,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   onSearchChange,
   unreadCount = 2,
 }) => {
+  const { session, isAdmin, loginAsAdmin, switchToGuest } = useAuth();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
 
@@ -88,38 +90,93 @@ export const TopBar: React.FC<TopBarProps> = ({
           )}
         </div>
 
-        {/* User Profile Pill matching reference image */}
+        {/* User Profile Pill with Active Role */}
         <div className="relative">
           <div
             onClick={() => setShowProfileMenu(!showProfileMenu)}
-            className="flex items-center gap-2.5 pl-1 pr-2 py-1 rounded-full hover:bg-slate-100 transition-colors cursor-pointer select-none"
+            className="flex items-center gap-2.5 pl-1 pr-2 py-1 rounded-full hover:bg-slate-100 transition-colors cursor-pointer select-none border border-transparent hover:border-slate-200"
           >
-            {/* Avatar Badge JD */}
-            <div className="w-8 h-8 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center shadow-xs">
-              JD
+            {/* Avatar Badge */}
+            <div className={`w-8 h-8 rounded-full ${isAdmin ? 'bg-emerald-600' : 'bg-blue-600'} text-white font-bold text-xs flex items-center justify-center shadow-xs transition-colors`}>
+              {session.avatarInitials}
             </div>
-            <span className="hidden sm:inline-block text-xs font-semibold text-slate-800">
-              John Doe
-            </span>
+            
+            <div className="hidden sm:flex flex-col text-left">
+              <span className="text-xs font-semibold text-slate-800 leading-tight">
+                {session.name}
+              </span>
+              <span className={`text-[10px] font-medium leading-tight ${isAdmin ? 'text-emerald-600' : 'text-blue-600'}`}>
+                {session.badge}
+              </span>
+            </div>
+
             <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
           </div>
 
           {/* Profile Dropdown */}
           {showProfileMenu && (
-            <div className="absolute right-0 mt-2 w-48 rounded-2xl bg-white border border-[#e5edf8] shadow-xl p-2 z-50 animate-fade-in-up text-xs">
-              <div className="px-3 py-2 border-b border-slate-100 mb-1">
-                <p className="font-bold text-slate-900">John Doe</p>
-                <p className="text-[11px] text-slate-500">Merchant Administrator</p>
+            <div className="absolute right-0 mt-2 w-72 rounded-2xl bg-white border border-[#e5edf8] shadow-2xl p-3 z-50 animate-fade-in-up text-xs">
+              
+              {/* Active User Header */}
+              <div className="flex items-center gap-3 p-2.5 rounded-xl bg-slate-50 border border-slate-100 mb-3">
+                <div className={`w-9 h-9 rounded-full ${isAdmin ? 'bg-emerald-600' : 'bg-blue-600'} text-white font-bold text-xs flex items-center justify-center shadow-xs shrink-0`}>
+                  {session.avatarInitials}
+                </div>
+                <div className="min-w-0">
+                  <p className="font-bold text-slate-900 truncate">{session.name}</p>
+                  <p className="text-[11px] text-slate-500 truncate">{session.email}</p>
+                  <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${isAdmin ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'}`}>
+                    {isAdmin ? '🛡️ Merchant Administrator' : '🔍 Guest Evaluator (Demo)'}
+                  </span>
+                </div>
               </div>
-              <div className="px-3 py-1.5 text-slate-700 font-medium hover:bg-slate-50 rounded-lg cursor-pointer">
-                Profile & Access
+
+              {/* 1-Click Role Switcher */}
+              <div className="mb-2">
+                <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider px-1 mb-1.5">
+                  Hackathon Role Switcher
+                </p>
+
+                {isAdmin ? (
+                  <button
+                    onClick={() => {
+                      switchToGuest();
+                      setShowProfileMenu(false);
+                    }}
+                    className="w-full text-left p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold flex items-center justify-between transition-colors border border-slate-200"
+                  >
+                    <div className="flex items-center gap-2">
+                      <UserCheck className="w-4 h-4 text-slate-500" />
+                      <span>Switch to Demo Evaluator</span>
+                    </div>
+                    <span className="text-[10px] bg-slate-600 text-white px-2 py-0.5 rounded-md font-bold">
+                      Demo Mode
+                    </span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      loginAsAdmin();
+                      setShowProfileMenu(false);
+                    }}
+                    className="w-full text-left p-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-900 font-semibold flex items-center justify-between transition-colors border border-blue-200"
+                  >
+                    <div className="flex items-center gap-2">
+                      <ShieldCheck className="w-4 h-4 text-blue-600" />
+                      <span>Switch to Merchant Admin</span>
+                    </div>
+                    <span className="text-[10px] bg-blue-600 text-white px-2 py-0.5 rounded-md font-bold">
+                      1-Click
+                    </span>
+                  </button>
+                )}
               </div>
-              <div className="px-3 py-1.5 text-slate-700 font-medium hover:bg-slate-50 rounded-lg cursor-pointer">
-                Security Settings
+
+              {/* Info Note for Judges */}
+              <div className="p-2 rounded-lg bg-amber-50/70 border border-amber-200/60 text-[11px] text-amber-800 leading-relaxed">
+                💡 <strong>Evaluation Note:</strong> Evaluators can switch roles in 1 click to test read-only triage vs. administrative decision override capabilities.
               </div>
-              <div className="px-3 py-1.5 text-rose-600 font-medium hover:bg-rose-50 rounded-lg cursor-pointer mt-1 border-t border-slate-100">
-                Sign Out
-              </div>
+
             </div>
           )}
         </div>

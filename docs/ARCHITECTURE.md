@@ -77,6 +77,13 @@ The project is structured as a coordinated full-stack monorepo:
 4. **Audit Trail (`/audit`)**: Immutable log table displaying timestamped events, policy versions, and JSON diffs.
 5. **Settings (`/settings`)**: PayPal Sandbox connection diagnostic, threshold policy sliders, and APIMatic contract validator.
 
+### 3.4. Role-Based Access Control (RBAC) & Hackathon Demo Switcher
+To balance seamless hackathon evaluation with realistic enterprise security controls, PayShield AI implements a **dual-persona role model**:
+- **`DEMO_EVALUATOR` (Default)**: Zero-friction guest judge mode. Evaluators explore the AG Grid, investigate risk signals, and test checkout personas without registration barriers.
+- **`MERCHANT_ADMIN` (1-Click Instant Elevation)**: Accessible directly from the TopBar or triggered on demand during decision overrides. Grants full authority to approve/block held transactions.
+- **Simulated vs. Live Dataset Labeling**: Benchmark transactions are tagged with `[Demo]` badges, while storefront checkout orders are tagged as `[Live]`.
+- **Audit Trail Attribution**: Overrides capture the active role (`GUEST_JUDGE` vs `MERCHANT_ADMIN`) in the immutable SQLite audit ledger.
+
 ---
 
 ## 4. Backend Architecture (`server/`)

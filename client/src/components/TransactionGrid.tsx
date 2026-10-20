@@ -53,16 +53,28 @@ export const TransactionGrid: React.FC<TransactionGridProps> = ({
       {
         field: 'orderId',
         headerName: 'Order ID',
-        width: 175,
+        width: 195,
         pinned: 'left',
         cellRenderer: (params: any) => {
           const isSelected = params.value === selectedOrderId;
+          const isSynth = params.data?.isSynthetic ?? false;
           const createdAt = params.data?.createdAt ? new Date(params.data.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
           return (
             <div className="flex flex-col justify-center h-full py-1 leading-normal">
-              <span className={`font-mono text-xs font-semibold ${isSelected ? 'text-cyan-400' : 'text-slate-100 hover:text-cyan-400'}`}>
-                {params.value}
-              </span>
+              <div className="flex items-center gap-1.5">
+                <span className={`font-mono text-xs font-semibold ${isSelected ? 'text-cyan-400' : 'text-slate-100 hover:text-cyan-400'}`}>
+                  {params.value}
+                </span>
+                {isSynth ? (
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-950/80 text-indigo-300 border border-indigo-800/60 font-semibold" title="Simulated Benchmark Dataset">
+                    Demo
+                  </span>
+                ) : (
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-950/80 text-emerald-300 border border-emerald-800/60 font-semibold" title="Live Storefront Checkout">
+                    Live
+                  </span>
+                )}
+              </div>
               {createdAt && (
                 <span className="text-[10px] text-slate-400 font-mono leading-none mt-0.5">{createdAt}</span>
               )}

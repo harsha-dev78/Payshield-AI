@@ -114,9 +114,21 @@ export const AuditTrail: React.FC<AuditTrailProps> = ({ onInspectOrder }) => {
         headerName: 'Actor Identity',
         width: 175,
         cellRenderer: (p: any) => {
+          const isMerchant = p.value === 'MERCHANT_ADMIN';
+          const isJudge = p.value === 'GUEST_JUDGE';
           return (
-            <div className="flex items-center h-full font-mono text-[11px] text-slate-600">
-              {p.value}
+            <div className="flex items-center gap-1.5 h-full font-mono text-[11px]">
+              {isMerchant ? (
+                <span className="text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                  MERCHANT_ADMIN
+                </span>
+              ) : isJudge ? (
+                <span className="text-blue-700 font-bold bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
+                  GUEST_JUDGE
+                </span>
+              ) : (
+                <span className="text-slate-600">{p.value}</span>
+              )}
             </div>
           );
         },
