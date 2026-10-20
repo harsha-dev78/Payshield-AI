@@ -23,5 +23,5 @@ export const CONFIG = {
     REVIEW_THRESHOLD: parseInt(process.env.RISK_THRESHOLD_REVIEW || '65', 10),
     POLICY_VERSION: 'v1.2.0-deterministic-baseline',
   },
-  DATABASE_PATH: path.resolve(__dirname, '../payshield.db'),
+  DATABASE_PATH: process.env.DATABASE_PATH || path.resolve(__dirname, '../payshield.db'),
 };

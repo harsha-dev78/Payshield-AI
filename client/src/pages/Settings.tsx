@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { 
   Key, 
   Sliders, 
@@ -41,11 +41,7 @@ export const Settings: React.FC = () => {
   const [testPayload, setTestPayload] = useState(defaultPayload);
   const [validationResult, setValidationResult] = useState<{ valid: boolean; errors: string[] } | null>(null);
 
-  useEffect(() => {
-    loadStatus();
-  }, []);
-
-  const loadStatus = async () => {
+  const loadStatus = useCallback(async () => {
     setLoadingStatus(true);
     try {
       const data = await api.getPayPalStatus();
@@ -55,7 +51,11 @@ export const Settings: React.FC = () => {
     } finally {
       setLoadingStatus(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadStatus();
+  }, [loadStatus]);
 
   const handleRunAPIMaticValidation = () => {
     try {

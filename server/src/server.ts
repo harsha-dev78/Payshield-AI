@@ -1,10 +1,16 @@
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
 import { CONFIG } from './config.js';
 import { ordersRouter } from './routes/orders.js';
 import { paypalRouter } from './routes/paypal.js';
 import { auditRouter } from './routes/audit.js';
 import { seedSyntheticDataIfNeeded } from './db/seeds.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 
@@ -42,16 +48,38 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Serve frontend static assets in production or when client/dist exists
+const clientDistCandidates = [
+  path.resolve(__dirname, '../../client/dist'),
+  path.resolve(process.cwd(), 'client/dist'),
+  path.resolve(process.cwd(), '../client/dist'),
+];
+const clientDistPath = clientDistCandidates.find((p) => fs.existsSync(p));
+
+if (clientDistPath) {
+  app.use(express.static(clientDistPath));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) {
+      return next();
+    }
+    res.sendFile(path.join(clientDistPath, 'index.html'));
+  });
+}
+
 // Seed sample data if empty
 seedSyntheticDataIfNeeded();
 
-// Start HTTP server
+// Start HTTP server binding to 0.0.0.0 for containerized cloud hosts
 const PORT = CONFIG.PORT;
-app.listen(PORT, () => {
+const HOST = '0.0.0.0';
+app.listen(PORT, HOST, () => {
   console.log(`=======================================================`);
-  console.log(`🛡️  PayShield AI Backend Server running on port ${PORT}`);
-  console.log(`📡  API Base: http://localhost:${PORT}/api`);
+  console.log(`🛡️  PayShield AI Server running on port ${PORT}`);
+  console.log(`📡  API Base: http://${HOST}:${PORT}/api`);
   console.log(`⚖️  Risk Policy: ${CONFIG.RISK.POLICY_VERSION}`);
+  if (clientDistPath) {
+    console.log(`📦  Serving Static UI from: ${clientDistPath}`);
+  }
   console.log(`=======================================================`);
 });
 

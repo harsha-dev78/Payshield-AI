@@ -135,7 +135,7 @@ export const AnalyzeTransactionModal: React.FC<AnalyzeTransactionModalProps> = (
   const [activeTab, setActiveTab] = useState<'SCENARIOS' | 'CUSTOM'>('SCENARIOS');
   
   // Custom Form State
-  const [orderId, setOrderId] = useState(`PS-2026-${Math.floor(1000 + Math.random() * 9000)}`);
+  const [orderId, setOrderId] = useState(() => `PS-2026-${Math.floor(1000 + Math.random() * 9000)}`);
   const [amount, setAmount] = useState('89.50');
   const [customerName, setCustomerName] = useState('Jane Doe');
   const [customerEmail, setCustomerEmail] = useState('jane.doe@gmail.com');

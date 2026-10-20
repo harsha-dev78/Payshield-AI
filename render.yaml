@@ -1,21 +1,22 @@
-# Render Blueprint for PayShield AI
-# PayPal AI Hackathon 1-Click Deployment Specification
+# ==============================================================================
+# PayShield AI — Render Deployment Blueprint
+# Built for the PayPal AI Hackathon 2026 ($0 Free Tier, No Credit Card Required)
 # https://render.com/docs/blueprint-spec
+# ==============================================================================
 
 services:
-  # Backend API: Express + TypeScript + SQLite Risk Engine
+  # Unified Full-Stack Web Service: Express + React 19 + SQLite Risk Engine
   - type: web
-    name: payshield-api
+    name: payshield-ai
     runtime: node
     plan: free
-    rootDir: server
     buildCommand: npm install && npm run build
     startCommand: npm start
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
-        value: 5000
+        value: 10000
       - key: PAYPAL_API_BASE
         value: https://api-m.sandbox.paypal.com
       - key: PAYPAL_CLIENT_ID
@@ -26,18 +27,3 @@ services:
         value: "30"
       - key: RISK_THRESHOLD_REVIEW
         value: "65"
-
-  # Frontend: React + Vite + Tailwind CSS + AG Grid
-  - type: web
-    name: payshield-ui
-    runtime: static
-    rootDir: client
-    buildCommand: npm install && npm run build
-    staticPublishPath: dist
-    routes:
-      - type: rewrite
-        source: /api/*
-        destination: https://payshield-api.onrender.com/api/*
-      - type: rewrite
-        source: /*
-        destination: /index.html

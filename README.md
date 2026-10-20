@@ -399,17 +399,41 @@ PayShield AI/
 
 ---
 
-## ☁️ Deployment (Render Blueprint)
+## ☁️ Deployment (100% Free Cloud Deployment on Render)
 
-PayShield AI is fully packaged for 1-click cloud deployment via the included [`render.yaml`](./render.yaml) blueprint:
+PayShield AI is fully packaged for 1-click deployment via the included [`render.yaml`](./render.yaml) blueprint on **Render's Free Tier** ($0 budget, no credit card required):
 
-1. Push your repository to GitHub.
-2. In the [Render Dashboard](https://dashboard.render.com), click **New +** → **Blueprint**.
-3. Connect your GitHub repository.
-4. Render automatically configures:
-   - **`payshield-api`**: Node.js Express Web Service (Backend)
-   - **`payshield-ui`**: Vite React Static Site (Frontend) with automated `/api/*` rewrite routing
-5. Fill in your optional `PAYPAL_CLIENT_ID` and `PAYPAL_CLIENT_SECRET` in the Render environment variables prompt.
+### Option 1: 1-Click Render Blueprint (Recommended)
+1. Push your repository to your GitHub account (`https://github.com/harsha-dev78/Payshield-AI`).
+2. Sign in to [Render Dashboard](https://dashboard.render.com) using your GitHub account (Free, no credit card).
+3. Click **New +** → **Blueprint**.
+4. Select your `Payshield-AI` repository and click **Connect**.
+5. Render detects `render.yaml` and deploys the unified **`payshield-ai`** Web Service:
+   - **Runtime:** Node.js
+   - **Build Command:** `npm install && npm run build`
+   - **Start Command:** `npm start`
+   - **Plan:** Free ($0)
+6. Optional: Enter your PayPal Sandbox credentials if you wish to run with live sandbox keys. (If left blank, PayShield automatically runs in its zero-dependency offline mock simulator mode).
+7. Click **Apply**. Within 2–3 minutes, your live public URL (`https://payshield-ai.onrender.com` or custom Render name) will be online with automatic SSL (HTTPS).
+
+### Option 2: Manual Web Service Setup on Render
+1. In Render Dashboard, click **New +** → **Web Service**.
+2. Connect your GitHub repository.
+3. Configure settings:
+   - **Name:** `payshield-ai`
+   - **Runtime:** `Node`
+   - **Build Command:** `npm install && npm run build`
+   - **Start Command:** `npm start`
+   - **Instance Type:** `Free`
+4. Add Environment Variables:
+   - `NODE_ENV` = `production`
+   - `PORT` = `10000`
+   - `PAYPAL_API_BASE` = `https://api-m.sandbox.paypal.com`
+   - `RISK_THRESHOLD_ALLOW` = `30`
+   - `RISK_THRESHOLD_REVIEW` = `65`
+5. Click **Create Web Service**.
+
+> **Note on Free Tier Sleep:** Free Render instances spin down after 15 minutes of inactivity. The initial HTTP request may take ~30–50 seconds to wake up the service. Subsequent requests respond with sub-second latency. Keep the health endpoint (`/api/health`) warm if preparing for a live hackathon demonstration!
 
 ---
 

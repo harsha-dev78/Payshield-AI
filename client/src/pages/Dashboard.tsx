@@ -58,21 +58,24 @@ export const Dashboard: React.FC<DashboardProps> = ({
     );
   }, [transactions, searchFilter]);
 
-  // Aggregate metrics matching the 4 reference cards
-  const totalCount = transactions.length || 24;
-  const safeCount = transactions.filter((t) => t.riskTier === 'ALLOW').length || 18;
-  const reviewCount = transactions.filter((t) => t.riskTier === 'REVIEW').length || 4;
-  const riskCount = transactions.filter((t) => t.riskTier === 'BLOCK').length || 2;
+  // Aggregate metrics accurately from live data
+  const totalCount = transactions.length;
+  const safeCount = transactions.filter((t) => t.riskTier === 'ALLOW').length;
+  const reviewCount = transactions.filter((t) => t.riskTier === 'REVIEW').length;
+  const riskCount = transactions.filter((t) => t.riskTier === 'BLOCK').length;
 
-  const safePercentage = Math.round((safeCount / totalCount) * 100) || 75;
-  const reviewPercentage = Math.round((reviewCount / totalCount) * 100) || 17;
-  const riskPercentage = Math.round((riskCount / totalCount) * 100) || 8;
+  const safePercentage = totalCount > 0 ? Math.round((safeCount / totalCount) * 100) : 0;
+  const reviewPercentage = totalCount > 0 ? Math.round((reviewCount / totalCount) * 100) : 0;
+  const riskPercentage = totalCount > 0 ? Math.round((riskCount / totalCount) * 100) : 0;
 
   // Format relative timestamp
   const getRelativeTime = (isoString?: string) => {
-    if (!isoString) return '5 min ago';
+    if (!isoString) return '—';
+    const parsed = new Date(isoString).getTime();
+    if (isNaN(parsed)) return '—';
     const now = Date.now();
-    const diffMs = now - new Date(isoString).getTime();
+    const diffMs = now - parsed;
+    if (diffMs < 0) return 'Just now';
     const diffMins = Math.floor(diffMs / (1000 * 60));
     if (diffMins < 1) return 'Just now';
     if (diffMins < 60) return `${diffMins} min ago`;
@@ -344,7 +347,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
               {filteredTransactions.length === 0 && (
                 <div className="p-8 text-center text-slate-400 text-xs">
-                  No transactions found matching your criteria.
+                  {loading ? 'Loading transactions...' : 'No transactions found matching your criteria.'}
                 </div>
               )}
             </div>

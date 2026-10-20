@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Sidebar } from './components/Sidebar.js';
 import { TopBar } from './components/TopBar.js';
 import { Dashboard } from './pages/Dashboard.js';
@@ -18,11 +18,7 @@ export function App() {
   const [searchFilter, setSearchFilter] = useState('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  useEffect(() => {
-    loadInitialData();
-  }, []);
-
-  const loadInitialData = async () => {
+  const loadInitialData = useCallback(async () => {
     setLoading(true);
     try {
       const [txList, health] = await Promise.all([
@@ -37,15 +33,17 @@ export function App() {
           policyVersion: health.policyVersion,
         });
       }
-      if (txList.length > 0 && !selectedOrderId) {
-        setSelectedOrderId(txList[0].orderId);
-      }
+      setSelectedOrderId((prev) => (!prev && txList.length > 0 ? txList[0].orderId : prev));
     } catch (err) {
       console.error('Initialization error', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadInitialData();
+  }, [loadInitialData]);
 
   const handleSelectTransaction = (orderId: string) => {
     setSelectedOrderId(orderId);

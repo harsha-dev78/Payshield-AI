@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { 
   ModuleRegistry, 
@@ -21,24 +21,22 @@ export const AuditTrail: React.FC<AuditTrailProps> = ({ onInspectOrder }) => {
   const [loading, setLoading] = useState(true);
   const [selectedRecord, setSelectedRecord] = useState<AuditRecord | null>(null);
 
-  useEffect(() => {
-    loadAuditLogs();
-  }, []);
-
-  const loadAuditLogs = async () => {
+  const loadAuditLogs = useCallback(async () => {
     setLoading(true);
     try {
       const data = await api.getAuditLogs();
       setLogs(data);
-      if (data.length > 0 && !selectedRecord) {
-        setSelectedRecord(data[0]);
-      }
+      setSelectedRecord((prev) => (!prev && data.length > 0 ? data[0] : prev));
     } catch (err) {
       console.error('Failed to load audit logs', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadAuditLogs();
+  }, [loadAuditLogs]);
 
   const lightFintechTheme = useMemo(() => {
     return themeQuartz.withParams({

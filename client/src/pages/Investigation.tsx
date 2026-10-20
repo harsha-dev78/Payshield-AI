@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { 
   ArrowLeft, 
   AlertTriangle, 
@@ -43,11 +43,7 @@ export const Investigation: React.FC<InvestigationProps> = ({ orderId, onBack, o
   const [showTechnicalDetails, setShowTechnicalDetails] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
-  useEffect(() => {
-    loadOrderDetails();
-  }, [orderId]);
-
-  const loadOrderDetails = async () => {
+  const loadOrderDetails = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -62,7 +58,11 @@ export const Investigation: React.FC<InvestigationProps> = ({ orderId, onBack, o
     } finally {
       setLoading(false);
     }
-  };
+  }, [orderId]);
+
+  useEffect(() => {
+    loadOrderDetails();
+  }, [loadOrderDetails]);
 
   const handleOverride = async (action: 'ALLOW' | 'BLOCK') => {
     setIsSubmitting(true);
@@ -274,7 +274,9 @@ export const Investigation: React.FC<InvestigationProps> = ({ orderId, onBack, o
                         {info.title}
                       </span>
                       <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium border ${
-                        isBad 
+                        sig.scoreContribution < 0
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          : isBad 
                           ? 'bg-rose-50 text-rose-700 border-rose-200' 
                           : 'bg-amber-50 text-amber-700 border-amber-200'
                       }`}>
@@ -286,8 +288,12 @@ export const Investigation: React.FC<InvestigationProps> = ({ orderId, onBack, o
                     </p>
                   </div>
 
-                  <span className="text-xs font-mono font-bold text-rose-600 shrink-0 bg-rose-50 border border-rose-100 px-2 py-0.5 rounded-md">
-                    +{sig.scoreContribution} pts
+                  <span className={`text-xs font-mono font-bold shrink-0 border px-2 py-0.5 rounded-md ${
+                    sig.scoreContribution > 0
+                      ? 'text-rose-600 bg-rose-50 border-rose-100'
+                      : 'text-emerald-700 bg-emerald-50 border-emerald-100'
+                  }`}>
+                    {sig.scoreContribution > 0 ? `+${sig.scoreContribution}` : sig.scoreContribution} pts
                   </span>
                 </div>
               );

@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useMemo } from 'react';
 import { 
   X, 
   Printer, 
@@ -30,10 +30,15 @@ export const InvestigationReportModal: React.FC<InvestigationReportModalProps> =
   const [copied, setCopied] = React.useState(false);
   const reportRef = useRef<HTMLDivElement>(null);
 
-  if (!isOpen) return null;
+  const reportId = useMemo(() => {
+    const timestamp = assessment?.assessedAt ? new Date(assessment.assessedAt).getTime() : Date.now();
+    return `REP-${transaction?.orderId || 'TX'}-${timestamp.toString(36).toUpperCase()}`;
+  }, [transaction?.orderId, assessment?.assessedAt]);
 
-  const reportId = `REP-${transaction.orderId}-${new Date(assessment.assessedAt).getTime().toString(36).toUpperCase()}`;
-  const generatedDate = new Date().toUTCString();
+  const generatedDate = useMemo(() => new Date().toUTCString(), []);
+  const displayGeneratedDate = useMemo(() => new Date().toLocaleString(), []);
+
+  if (!isOpen) return null;
 
   const handlePrint = () => {
     window.print();
@@ -206,7 +211,7 @@ This report represents automated algorithmic telemetry assessment at time of tra
 
             <div className="text-left sm:text-right text-xs text-slate-500 font-mono space-y-0.5">
               <div><strong>Document ID:</strong> {reportId}</div>
-              <div><strong>Generated:</strong> {new Date().toLocaleDateString()} {new Date().toLocaleTimeString()}</div>
+              <div><strong>Generated:</strong> {displayGeneratedDate}</div>
               <div><strong>Status:</strong> <span className="text-slate-800 font-semibold">{transaction.paymentStatus || 'PENDING'}</span></div>
             </div>
           </div>
