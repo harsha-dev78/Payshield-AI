@@ -1,32 +1,44 @@
-# React + TypeScript + Vite
+# PayShield AI — Frontend Client (`client/`)
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+> **React 19 + TypeScript + Vite + Tailwind CSS v4 + AG Grid Community**  
+> Built for the **PayPal AI Hackathon 2026**
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 🌟 Overview
+The PayShield AI client provides a real-time security operations center and customer sandbox storefront for e-commerce fraud prevention:
 
-## React Compiler
+- **Dashboard (`/`)**: Overview security health donut meter, 4 KPI cards (Total Analyzed, Intercepted Attacks, Fraud Rate, Avg Latency), and the live AG Grid triage table.
+- **Investigation (`/investigation`)**: Deep-dive forensic workbench showing:
+  - *Telemetry Facts vs. Inferences* side-by-side cards.
+  - *Factor Impact Waterfall* breaking down positive and negative risk weights.
+  - *Actionable Counterfactual Box* showing mathematical point reduction conditions.
+  - *Investigation Report Modal* providing a clean, printable PDF-style summary.
+- **Sandbox Storefront (`/checkout`)**: Interactive customer checkout simulation loaded with 5 distinct risk personas to demonstrate live pre-capture intervention.
+- **Audit Trail (`/audit`)**: Immutable log table displaying timestamped events, policy versions, and JSON diffs.
+- **Settings (`/settings`)**: PayPal Sandbox connection diagnostic, threshold policy sliders, and APIMatic contract validator.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the Oxlint configuration
+## 🚀 Running Locally
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+```bash
+# From within the client/ directory:
+npm run dev
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+# Or from project root:
+npm run dev:client
 ```
+The Vite development server runs at `http://localhost:5173/`. API requests to `/api` are automatically proxied to `http://localhost:5000` via `vite.config.ts`.
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+---
+
+## 🧪 Testing & Linting
+
+```bash
+# Run Oxlint linter:
+npm run lint
+
+# Run production build:
+npm run build
+```

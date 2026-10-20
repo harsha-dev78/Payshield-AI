@@ -1,122 +1,155 @@
 # 🛡️ PayShield AI — Pre-Capture Payment Security Agent
 
 > **An evidence-based payment security firewall and explainable AI risk interceptor for online merchants.**  
-> Built for the **PayPal AI Hackathon 2026** • Zero-Cost Cloud Architecture • Fully Reproducible $0 Local Run.
+> Built for the **PayPal AI Hackathon 2026** • Zero-Cost Cloud Deployment • Fully Reproducible $0 Local Run.
+
+[![Render Deployment](https://img.shields.io/badge/Render-Live%20Demo-22c55e?style=for-the-badge&logo=render&logoColor=white)](https://payshield-ai-ctkr.onrender.com)
+[![PayPal Sandbox](https://img.shields.io/badge/PayPal-Sandbox%20Orders%20v2-003087?style=for-the-badge&logo=paypal&logoColor=white)](https://developer.paypal.com)
+[![AG Grid Community](https://img.shields.io/badge/AG%20Grid-v36%20Community-3b82f6?style=for-the-badge&logo=aggrid&logoColor=white)](https://www.ag-grid.com)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](./LICENSE)
+[![Tests Passing](https://img.shields.io/badge/Vitest-11%2F11%20Passed-brightgreen?style=for-the-badge&logo=vitest&logoColor=white)](./docs/TESTING.md)
+
+---
+
+## 🌐 Live Deployed Application
+
+- **Public Cloud URL:** [https://payshield-ai-ctkr.onrender.com](https://payshield-ai-ctkr.onrender.com)
+- **Deployment Platform:** Render Free Tier (Node.js Full-Stack Service with unified static asset serving)
+- **API Health Check:** [https://payshield-ai-ctkr.onrender.com/api/health](https://payshield-ai-ctkr.onrender.com/api/health)
+
+> *Note on Free Tier Sleep:* Render free instances spin down after 15 minutes of inactivity. If the service is sleeping, the first request may take ~30–50 seconds to spin up. Once awake, requests respond with sub-second latency.
 
 ---
 
 ## 📋 Table of Contents
-- [Overview](#-overview)
-- [Main Features](#-main-features)
-- [How the AI Risk Engine Works](#-how-the-ai-risk-engine-works)
-- [Architecture](#-architecture)
+- [The Problem PayShield AI Addresses](#-the-problem-payshield-ai-addresses)
+- [How PayShield AI Works](#-how-payshield-ai-works)
+- [Feature Matrix (Implemented vs. Planned)](#-feature-matrix-implemented-vs-planned)
+- [System Architecture](#-system-architecture)
+- [Application Screenshots](#-application-screenshots)
 - [Technology Stack](#-technology-stack)
-- [Prerequisites](#-prerequisites)
-- [Installation & Setup](#-installation--setup)
+- [Prerequisites & Local Installation](#-prerequisites--local-installation)
+- [Environment Configuration (.env.example)](#-environment-configuration-envexample)
+- [Database Setup & Seeding](#-database-setup--seeding)
 - [Running the Application](#-running-the-application)
-- [Configuring PayPal Sandbox](#-configuring-paypal-sandbox)
-- [Testing & Quality Checks](#-testing--quality-checks)
-- [Project Structure](#-project-structure)
-- [Security & Privacy Practices](#-security--privacy-practices)
-- [Deployment (Render Blueprint)](#-deployment-render-blueprint)
+- [PayPal Sandbox Setup](#-paypal-sandbox-setup)
+- [Testing & Quality Verification](#-testing--quality-verification)
+- [Known Limitations](#-known-limitations)
+- [Security & Privacy Guarantees](#-security--privacy-guarantees)
+- [Detailed Documentation](#-detailed-documentation)
 - [License](#-license)
 
 ---
 
-## 🔍 Overview
+## 💥 The Problem PayShield AI Addresses
 
-E-commerce merchants lose billions annually to payment fraud, card-testing attacks, and dispute fees. Traditional fraud solutions operate as opaque "black boxes" that calculate mysterious scores post-transaction—leaving merchants either blindly absorbing chargeback penalties or alienating legitimate buyers through unexplained declines.
+E-commerce merchants lose tens of billions annually to payment fraud, card-testing bot attacks, and dispute settlement penalties. Traditional fraud solutions present two catastrophic flaws:
 
-**PayShield AI** changes this paradigm by acting as an **intelligent, explainable pre-capture firewall**:
-1. **Pre-Capture Interception:** Telemetry and transaction metadata are evaluated *before* funds are authorized or captured through the payment gateway.
-2. **Fact vs. Inference Attribution:** Every risk assessment explicitly distinguishes between *observed telemetry facts* (e.g. *"IP country resolves to NL, whereas shipping destination is US"*) and *heuristic inferences*.
-3. **Actionable Counterfactuals:** Instead of rejecting transactions outright, PayShield AI answers *"What Would Change This Decision?"*, presenting merchants and buyers with concrete conditions (e.g. 3D-Secure challenge or residential IP verification) to safely unlock the order.
-4. **Zero-Dependency Demo Mode:** Includes a fully functional offline mock gateway fallback, allowing instant evaluation without requiring external API keys.
+1. **Post-Authorization Failure:** They score transactions *after* the gateway authorization call. Even if a fraud alert is triggered, the merchant is already liable for payment gateway processing fees and dispute penalties.
+2. **Opaque "Black Box" Decisions:** Conventional machine learning scoring tools output arbitrary numbers (e.g. `Score: 84`) without explainability. Fraud analysts cannot distinguish between an observed technical fact (e.g. proxy IP) and a heuristic inference, forcing merchants to either blindly absorb chargebacks or alienate legitimate buyers through unexplained declines.
 
----
-
-## ✨ Main Features
-
-| Feature | Description |
-| :--- | :--- |
-| **🛡️ Pre-Capture Interceptor** | Evaluates transactions in real time prior to PayPal capture. High-risk orders are blocked pre-authorization to prevent chargebacks and payment processor fees. |
-| **🧠 Dual-Model Risk Engine** | Combines a transparent deterministic heuristic engine with an in-process calibrated Logistic Regression / Decision-Tree ensemble classifier. |
-| **🔎 Evidence-to-Action Forensics** | Unbundles risk scores into weighted factors across 5 categories: Geography, Network, Velocity, Behavioral, and Financial. |
-| **🔄 Counterfactual Reasoning** | Generates dynamic recommendations answering *"What Would Change This Decision?"* with specific point reductions for buyer verification. |
-| **📊 AG Grid Transaction Feed** | High-performance triage table built on AG Grid Community with real-time risk badges, multi-column filtering, sorting, and drill-down inspection. |
-| **💳 Live PayPal Sandbox Gateway** | Native integration with the official PayPal Orders v2 REST API supporting OAuth2 token caching, order creation, and capture. |
-| **📜 Tamper-Evident Audit Ledger** | Immutable SQLite audit trail logging every assessment, policy version, merchant override, and PayPal capture ID. |
-| **🏪 Interactive Sandbox Storefront** | Built-in test checkout interface with 5 pre-configured risk archetypes to test benign and adversarial payment scenarios. |
-| **📐 APIMatic Contract Validator** | In-app inspection suite verifying PayPal v2 Order payloads against canonical APIMatic schemas. |
+**PayShield AI transforms this paradigm by acting as an intelligent, explainable pre-capture firewall.**
 
 ---
 
-## 🧠 How the AI Risk Engine Works
+## 🧠 How PayShield AI Works
 
-PayShield AI employs a **dual-model evaluation pipeline** running entirely in-process for sub-millisecond decision latency and zero cloud dependency:
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Shopper as Customer / Browser
+    participant Store as Frontend (React 19)
+    participant Server as PayShield Backend (Express)
+    participant Engine as AI Risk & Explainability Engine
+    participant PayPal as PayPal Sandbox API
+    participant DB as SQLite (payshield.db)
 
-```text
-Incoming Transaction Payload
-       │
-       ├──► 1. Telemetry Ingestion (IP, VPN flag, Device Fingerprint, Account Age, Velocity, Address Matching)
-       │
-       ├──► 2. Deterministic Heuristic Engine (5 Signal Categories)
-       │       ├── GEOGRAPHY: Cross-border mismatch, billing vs shipping discrepancy
-       │       ├── NETWORK: Datacenter IP, commercial VPN, Tor exit node detection
-       │       ├── VELOCITY: Rapid failed checkout attempts (card-testing pattern)
-       │       ├── BEHAVIORAL: Disposable/ephemeral email inbox (@tempmail, @mailinator)
-       │       └── FINANCIAL: High-basket value on young/unverified accounts
-       │       └── Positive Signals: Established account tenure, domestic cohesion
-       │
-       ├──► 3. Calibrated ML Classifier (Logistic Regression Ensemble)
-       │       ├── Feature extraction & weighted logit combination
-       │       ├── Sigmoid activation: Fraud Probability (0.00 – 1.00)
-       │       └── Grounded natural language narrative generation
-       │
-       ├──► 4. Counterfactual Generator ("What Would Change This Decision?")
-       │       └── Calculates mathematical score reduction for remediation paths
-       │
-       └──► 5. Policy Decision Tiering
-               ├── Score < 30   ──► ALLOW  (Automated PayPal capture approved)
-               ├── Score 30-65  ──► REVIEW (Manual merchant verification recommended)
-               └── Score > 65   ──► BLOCK  (Pre-capture hold; settlement arrested)
+    Shopper->>Store: Submits Checkout Order
+    Store->>Server: POST /api/paypal/create-order (Order & Telemetry)
+    Server->>Engine: Run Dual-Model Risk Pipeline
+    
+    rect rgb(20, 25, 45)
+    Note over Engine: 1. Deterministic Heuristic Rules (5 Categories)<br/>2. Calibrated ML Ensemble (Fraud Probability)<br/>3. Fact vs. Inference Attribution<br/>4. Counterfactual Generator ("What Would Change This?")
+    end
+
+    alt Risk Tier == BLOCK (Score > 65)
+        Engine-->>Server: Result: BLOCK (High Risk)
+        Server->>DB: Log Intercepted Transaction & Audit Record
+        Server-->>Store: HTTP 403 Forbidden (Pre-Capture Arrest)
+        Note over Server,PayPal: 🛑 Zero Gateway Request Sent to PayPal
+        Store-->>Shopper: Order Blocked with Explanation & Remediation Path
+    else Risk Tier == ALLOW or Approved REVIEW (Score <= 65)
+        Engine-->>Server: Result: ALLOW / REVIEW
+        Server->>PayPal: POST /v2/checkout/orders (Bearer Token Cached)
+        PayPal-->>Server: 201 Created (PayPal Order ID)
+        Server->>DB: Save Transaction & Risk Assessment
+        Server-->>Store: Returns Approval & PayPal Order ID
+        Store->>Shopper: Displays PayPal Checkout Button
+        Shopper->>PayPal: Authorizes Payment
+        Store->>Server: POST /api/paypal/capture-order
+        Server->>PayPal: POST /v2/checkout/orders/{id}/capture
+        PayPal-->>Server: 200 OK (Capture ID)
+        Server->>DB: Update Payment Status & Append Audit Trail
+        Server-->>Store: Order Confirmed
+    end
 ```
 
-### Risk Score Calculation
-- **Baseline Score:** Starts at 15 points (standard baseline risk for card-not-present e-commerce).
-- **Adversarial Signals:** Add weighted points based on severity (e.g. +35 for velocity spikes, +28 for country mismatch, +22 for proxy/VPN).
-- **Trust Attributes:** Subtract points for verified tenure (e.g. -20 for accounts active >90 days with zero declines, -15 for harmonious domestic routing).
-- **Bounding:** Normalized between 0 and 100 points.
+---
+
+## ✨ Feature Matrix (Implemented vs. Planned)
+
+To maintain absolute transparency, here is the exact breakdown of implemented features versus planned future roadmap enhancements:
+
+### Fully Implemented Features (Verified in Active Codebase)
+- [x] **Pre-Capture Interception Firewall:** Halts adversarial orders before creating or capturing PayPal orders (`POST /api/paypal/create-order`).
+- [x] **Dual-Model Risk Engine:** Deterministic rule engine across 5 categories + calibrated in-process logistic regression ML classifier.
+- [x] **Evidence-to-Action Forensics:** Explicitly tags and separates *Observed Telemetry Facts* from *Heuristic Model Inferences*.
+- [x] **Actionable Counterfactuals:** Generates mathematical point reductions answering *"What Would Change This Decision?"* (e.g. 3D-Secure challenge: -30 pts).
+- [x] **High-Throughput AG Grid Feed:** Custom-styled dark navy AG Grid Community table with risk tier badges, multi-column sorting, customer search, and interactive row drill-down.
+- [x] **Official PayPal Orders v2 Integration:** Real OAuth2 Bearer token caching, Order creation, and pre-authorized Capture with double-capture lock.
+- [x] **Built-In Offline Mock Sandbox Mode:** Complete zero-dependency fallback that simulates PayPal IDs without external network calls.
+- [x] **Interactive Sandbox Storefront:** Live checkout simulator loaded with 5 distinct test archetypes (Clean Shopper, Anonymous VPN, Card-Testing Attack, Young Account, Loyal Customer).
+- [x] **Tamper-Evident SQLite Audit Ledger:** Immutable event logs with actor attribution (`SYSTEM_AGENT` vs `MERCHANT_ANALYST`), timestamps, and JSON diffs.
+- [x] **APIMatic Contract Validator:** In-app inspection suite verifying PayPal v2 payloads against APIMatic schemas.
+- [x] **Forensic Report Modal:** Printable, formatted PDF-style investigation report with executive summaries.
+- [x] **Zero-Cost Render Blueprint:** Single-command cloud deployment via [`render.yaml`](./render.yaml).
+
+### Planned Roadmap Features (Future Scope)
+- [ ] **Automated Biometric Telemetry:** Keystroke cadence and mouse cursor entropy scoring.
+- [ ] **WebHook Ingestion Engine:** Live listening for PayPal disputes and chargeback webhooks (`PAYMENT.CAPTURE.DENIED`).
+- [ ] **Consensus Multi-Merchant Graph:** Distributed IP reputation sharing across multiple participating merchants.
 
 ---
 
-## 🏗️ Architecture
+## 🏗️ System Architecture
+
+PayShield AI is organized as a unified full-stack application:
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────┐
 │                        Shopper / Merchant Browser                      │
 │                                                                        │
 │   [ React 19 + TypeScript + Tailwind CSS v4 + AG Grid Community ]      │
-│   ├── /dashboard       ── Real-time security metrics & triage feed     │
-│   ├── /investigation   ── 4-section evidence & counterfactual review   │
-│   ├── /checkout        ── Interactive Sandbox Storefront               │
-│   ├── /audit           ── Tamper-evident SQLite audit trail            │
-│   └── /settings        ── PayPal Sandbox credentials & APIMatic specs  │
+│   ├── /                 ── Real-time security metrics & triage feed    │
+│   ├── /investigation    ── 4-section evidence & counterfactual review  │
+│   ├── /checkout         ── Interactive Sandbox Storefront              │
+│   ├── /audit            ── Tamper-evident SQLite audit trail           │
+│   └── /settings         ── Gateway health & APIMatic schema validator  │
 └────────────────────────────────────┬───────────────────────────────────┘
                                      │ HTTP REST (/api/...)
                                      ▼
 ┌────────────────────────────────────────────────────────────────────────┐
-│                    Express + TypeScript Server (Port 5000)             │
+│                    Express + TypeScript Server                         │
 │                                                                        │
-│   ├── /api/orders      ── Transaction evaluation & manual override     │
-│   ├── /api/paypal      ── Pre-capture verification, create & capture   │
-│   ├── /api/audit       ── Audit trail querying                         │
-│   └── /api/health      ── Health checks & environment status           │
+│   ├── /api/orders       ── Order evaluation & manual overrides         │
+│   ├── /api/paypal       ── Pre-capture verification, create & capture  │
+│   ├── /api/audit        ── Tamper-evident audit log querying           │
+│   └── /api/health       ── System vitals & policy version metadata     │
 │                                                                        │
-│   ┌─────────────────────┐  ┌──────────────────────┐  ┌──────────────┐ │
-│   │ Explainable Engine  │  │ Calibrated Classifier│  │ PayPalClient │ │
-│   │ (rules.ts)          │  │ (classifier.ts)      │  │ (OAuth2 SDK) │ │
-│   └─────────────────────┘  └──────────────────────┘  └──────────────┘ │
+│   ┌─────────────────────┐  ┌──────────────────────┐  ┌──────────────┐  │
+│   │ Heuristic Engine    │  │ Calibrated Classifier│  │ PayPalClient │  │
+│   │ (rules.ts)          │  │ (classifier.ts)      │  │ (OAuth2 SDK) │  │
+│   └─────────────────────┘  └──────────────────────┘  └──────────────┘  │
 │                                                                        │
 │   ┌──────────────────────────────────────────────────────────────────┐ │
 │   │ SQLite Database (payshield.db — WAL mode, foreign keys enforced) │ │
@@ -125,78 +158,96 @@ Incoming Transaction Payload
                                      │ HTTPS
                                      ▼
 ┌────────────────────────────────────────────────────────────────────────┐
-│       PayPal Sandbox API Gateway (https://api-m.sandbox.paypal.com)     │
-│       ├── POST /v1/oauth2/token                                        │
+│       PayPal Sandbox API Gateway (https://api-m.sandbox.paypal.com)    │
+│       ├── POST /v1/oauth2/token (Cached OAuth2 Bearer Tokens)          │
 │       ├── POST /v2/checkout/orders                                     │
 │       └── POST /v2/checkout/orders/{id}/capture                        │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
+For full architectural diagrams and data flows, see [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md).
+
+---
+
+## 📸 Application Screenshots
+
+The screenshots below are **genuine captures from the live running application**:
+
+### 1. Merchant Security Command Center (Dashboard)
+High-level security KPIs, security health donut, and the live AG Grid triage feed:
+![Merchant Dashboard](./docs/screenshots/01-dashboard.png)
+
+### 2. Forensic Investigation & Evidence Unbundling
+4-pillar forensic workbench displaying observed facts, inferences, and factor weights:
+![Forensic Investigation](./docs/screenshots/02-investigation.png)
+
+### 3. Actionable Counterfactual Reasoning ("What Would Change This Decision?")
+Transparent conditions and point reductions that would safely unlock the transaction:
+![Counterfactual Explanation](./docs/screenshots/03-ai-risk-explanation.png)
+
+### 4. Printable Investigation Report
+Clean, structured forensic investigation report ready for merchant compliance:
+![Investigation Report](./docs/screenshots/04-investigation-report.png)
+
+### 5. Interactive Sandbox Storefront
+Simulate 5 risk archetypes with pre-capture evaluation and PayPal Sandbox checkout:
+![Sandbox Storefront](./docs/screenshots/05-sandbox-checkout.png)
+
+### 6. Tamper-Evident SQLite Audit Ledger
+Immutable history of risk decisions, policy versions, and analyst overrides:
+![Audit Trail](./docs/screenshots/06-audit-trail.png)
+
+### 7. Gateway Settings & APIMatic Contract Validator
+Gateway connection diagnostics and canonical PayPal Orders v2 contract schema inspector:
+![Settings and Specs](./docs/screenshots/07-settings-apimatic.png)
+
 ---
 
 ## 💻 Technology Stack
 
-### Frontend
-- **React 19** & **TypeScript** — Modern component-driven UI
-- **Vite 8** — High-performance module bundler and dev server
-- **Tailwind CSS v4** (`@tailwindcss/vite`) — Contemporary fintech dark navy design system
-- **AG Grid Community Edition** (`ag-grid-react`, `ag-grid-community`) — High-throughput transaction triage feed
-- **Lucide React** — Crisp iconography
-- **@paypal/react-paypal-js** — PayPal JavaScript SDK integration
-
-### Backend
-- **Node.js (v18+)** with **ES Modules**
-- **Express 4** & **TypeScript** (`tsx` dev runner) — Lightweight REST API
-- **better-sqlite3** — High-speed embedded database with WAL (Write-Ahead Logging)
-- **Zod** — Schema validation and type inference
-- **dotenv** & **cors** — Environment configuration and cross-origin resource sharing
-
-### Quality & Testing
-- **Vitest 3** — Unit and integration test runner
-- **Oxlint** — High-performance JavaScript/TypeScript linter
-- **Concurrently** — Coordinated multi-service local development
+| Domain | Technology | Purpose |
+| :--- | :--- | :--- |
+| **Frontend Framework** | **React 19** & **TypeScript** | Component-driven reactive user interface |
+| **Bundler & Tooling** | **Vite 8** | Rapid development server & optimized production bundling |
+| **Styling & Design** | **Tailwind CSS v4** (`@tailwindcss/vite`) | Custom fintech dark navy design system |
+| **Data Grid** | **AG Grid Community v36** | High-performance transaction triage feed with custom cells |
+| **Icons** | **Lucide React** | Consistent fintech iconography |
+| **Backend Runtime** | **Node.js (v18+)** (ES Modules) | Server execution environment |
+| **API Framework** | **Express 4** & **TypeScript** | REST API endpoints & static client delivery |
+| **Database** | **SQLite (better-sqlite3)** | Embedded local persistence with WAL mode |
+| **Validation** | **Zod** | Runtime schema validation for transactions and PayPal contracts |
+| **Payment Gateway** | **PayPal Orders v2 REST API** | Official sandbox OAuth2 authentication and capture |
+| **Test Runner** | **Vitest 3** | In-process unit and integration test runner (11 tests) |
+| **Linter** | **Oxlint** | High-speed JavaScript and TypeScript linting |
 
 ---
 
-## 📦 Prerequisites
+## 📦 Prerequisites & Local Installation
 
-Ensure you have the following installed on your machine:
-- **Node.js**: v18.0.0 or higher (v20+ or v22+ recommended)
-- **npm**: v9.0.0 or higher
-- **Git**: Installed and configured
+### Prerequisites
+- **Node.js**: `v18.0.0` or higher (`v20.x` or `v22.x` recommended)
+- **npm**: `v9.0.0` or higher
+- **Git**
 
-Check versions:
+### Installation Steps
 ```bash
-node -v
-npm -v
-git --version
-```
+# 1. Clone the repository
+git clone https://github.com/harsha-dev78/Payshield-AI.git
+cd Payshield-AI
 
----
-
-## 🛠️ Installation & Setup
-
-### 1. Clone the Repository
-```bash
-git clone https://github.com/your-username/PayShield-AI.git
-cd "PayShield-AI"
-```
-
-### 2. Install Dependencies
-Install dependencies for the root coordinator, backend server, and frontend client:
-```bash
-# Install root orchestration dependencies
+# 2. Install root, backend, and frontend dependencies
 npm install
-
-# Install server dependencies
 npm install --prefix server
-
-# Install client dependencies
 npm install --prefix client
 ```
 
-### 3. Configure Environment Variables
-Copy the `.env.example` template to `server/.env`:
+For complete setup instructions, see [docs/SETUP.md](./docs/SETUP.md).
+
+---
+
+## ⚙️ Environment Configuration (`.env.example`)
+
+Copy the environment template before running:
 ```bash
 # On Linux / macOS / Git Bash:
 cp .env.example server/.env
@@ -205,238 +256,128 @@ cp .env.example server/.env
 Copy-Item .env.example server/.env
 ```
 
-> **Note:** PayShield AI works out of the box with the default placeholder credentials using its built-in offline mock sandbox! Setting up live PayPal credentials is completely optional.
+Contents of [`.env.example`](./.env.example):
+```env
+# Server Network Configuration
+PORT=5000
+NODE_ENV=development
+
+# PayPal Sandbox API Credentials (Optional - works offline if omitted)
+PAYPAL_CLIENT_ID=your_paypal_sandbox_client_id_here
+PAYPAL_CLIENT_SECRET=your_paypal_sandbox_client_secret_here
+PAYPAL_API_BASE=https://api-m.sandbox.paypal.com
+
+# Explainable Risk Engine Policy Thresholds
+RISK_THRESHOLD_ALLOW=30
+RISK_THRESHOLD_REVIEW=65
+```
+
+---
+
+## 🗄️ Database Setup & Seeding
+
+PayShield AI uses an embedded SQLite database ([`payshield.db`](./server/payshield.db)) running in **WAL (Write-Ahead Logging)** mode with enforced foreign keys:
+
+- **Automatic Table Initialization:** Database tables (`transactions`, `risk_assessments`, `audit_logs`) and indexes are automatically created on initial startup via embedded schema definitions in [`database.ts`](./server/src/db/database.ts).
+- **Synthetic Benchmark Seeds:** On first boot, [`seeds.ts`](./server/src/db/seeds.ts) automatically seeds 8 realistic benchmark transactions across benign, card-testing, and VPN personas.
+- **Zero Database Server Setup:** No PostgreSQL, MySQL, or Docker daemon required.
 
 ---
 
 ## 🚀 Running the Application
 
 ### Option A: Run Concurrently (Recommended)
-Launch both the backend API server and the frontend client simultaneously with a single command from the project root:
+From the project root:
 ```bash
 npm run dev
 ```
+- **Frontend Dashboard:** [http://localhost:5173](http://localhost:5173)
+- **Backend API:** [http://localhost:5000/api](http://localhost:5000/api)
 
 ### Option B: Run Services Individually
-Open two terminal windows:
-
-**Terminal 1 — Backend API Server:**
 ```bash
+# Terminal 1: Backend Server (Port 5000)
 npm run dev:server
-# Server starts at http://localhost:5000
-```
 
-**Terminal 2 — Frontend Client:**
-```bash
+# Terminal 2: Frontend Client (Port 5173)
 npm run dev:client
-# Vite client starts at http://localhost:5173
 ```
-
-### Application URLs
-| Service | URL | Description |
-| :--- | :--- | :--- |
-| **Merchant Dashboard** | [http://localhost:5173](http://localhost:5173) | Security health overview, metric cards, and AG Grid stream |
-| **Forensic Investigation** | [http://localhost:5173/investigation](http://localhost:5173/investigation) | Evidence attribution, counterfactuals, and narrative |
-| **Sandbox Storefront** | [http://localhost:5173/checkout](http://localhost:5173/checkout) | Interactive test checkout simulating benign and attack patterns |
-| **Audit Ledger** | [http://localhost:5173/audit](http://localhost:5173/audit) | Immutable SQLite transaction and override audit trail |
-| **Settings & Specs** | [http://localhost:5173/settings](http://localhost:5173/settings) | Gateway vitals, policy thresholds, and APIMatic schemas |
-| **Backend API Health** | [http://localhost:5000/api/health](http://localhost:5000/api/health) | System vitals and PayPal connection status |
 
 ---
 
-## 🔑 Configuring PayPal Sandbox
+## 🔑 PayPal Sandbox Setup
 
-To connect PayShield AI to your live PayPal Developer Sandbox:
+### Live Sandbox Mode
+1. Sign in to the [PayPal Developer Dashboard](https://developer.paypal.com/dashboard/).
+2. Navigate to **Apps & Credentials** → **Sandbox**.
+3. Create an app (e.g. `PayShield-App`) and copy your **Client ID** and **Client Secret**.
+4. Paste these into `server/.env`.
+5. Restart `npm run dev`. The `/settings` page will indicate `LIVE_SANDBOX`.
 
-1. **Sign in to the PayPal Developer Portal:**
-   Visit [https://developer.paypal.com/dashboard/](https://developer.paypal.com/dashboard/) and log in with your PayPal credentials.
-2. **Access Sandbox Credentials:**
-   In the left sidebar, navigate to **Apps & Credentials** and ensure the **Sandbox** toggle is selected.
-3. **Create or Select an App:**
-   Select your default application or click **Create App** (e.g. name it `PayShield-Sandbox`).
-4. **Copy API Keys:**
-   Copy the **Client ID** and **Secret Key**.
-5. **Update `server/.env`:**
-   ```env
-   PAYPAL_CLIENT_ID=your_actual_sandbox_client_id_here
-   PAYPAL_CLIENT_SECRET=your_actual_sandbox_client_secret_here
-   PAYPAL_API_BASE=https://api-m.sandbox.paypal.com
-   ```
-6. **Restart the Backend Service:**
-   Restart `npm run dev`. Navigate to **Settings** in the dashboard to confirm the PayPal status reflects `LIVE_SANDBOX`.
-
-### Built-in Zero-Config Mock Mode
-If no credentials are supplied (or placeholders remain), PayShield AI automatically detects this and falls back to **Offline Mock Mode**:
+### Zero-Config Offline Mock Mode
+If you leave the default placeholders in `server/.env`, PayShield AI **automatically activates its built-in offline simulator**:
 - Simulated orders return synthetic PayPal order IDs (`PAYPAL-SANDBOX-XXXXX`).
-- Capture calls return mock authorization references (`CAP-XXXXX`).
-- Zero network requests are made to external PayPal servers, ensuring a reliable offline demo experience.
+- Captures return mock transaction IDs (`CAP-XXXXX`).
+- Zero calls are made to external PayPal servers, ensuring a 100% reliable offline demo experience.
 
 ---
 
-## 🧪 Testing & Quality Checks
+## 🧪 Testing & Quality Verification
 
-PayShield AI includes a comprehensive suite of automated tests, type checks, and linters:
+PayShield AI includes an automated Vitest test suite covering risk rules, gateway interception, and tamper-evident auditing:
 
-### 1. Run Backend Unit & Integration Tests
-Runs the Vitest test suite validating rule attribution, threshold classification, and counterfactual generation:
 ```bash
+# Run the 11 automated test cases:
 npm test
-```
-Or directly in the server directory:
-```bash
-npm run test --prefix server
-```
 
-### 2. Run Full Production Build
-Compiles TypeScript for both the backend server and frontend client:
-```bash
+# Run frontend linter:
+npm run lint --prefix client
+
+# Run production build:
 npm run build
 ```
 
-### 3. Run Frontend Linter
-Executes Oxlint across all client components and pages:
-```bash
-npm run lint --prefix client
-```
+### Automated Test Coverage (11/11 Passing)
+- `tests/riskEngine.test.ts` (3 tests) — Heuristic attribution, baseline scoring, and counterfactual point reductions.
+- `tests/investigationAndSecurity.test.ts` (5 tests) — Transaction retrieval, fact vs. inference tagging, manual override audit logs, and SQL injection safety.
+- `tests/paypalAndApiWorkflows.test.ts` (3 tests) — Pre-capture high-risk blocking, mock order creation, and capture idempotency locks.
 
-### 4. Interactive Simulation Testing
-Navigate to the **Sandbox Storefront** (`/checkout`) in your browser to test 5 realistic checkout archetypes:
-1. **Clean Shopper:** Domestic residential checkout ($45.00) ➔ Classified as `ALLOW` ➔ Instant PayPal capture.
-2. **Anonymous VPN:** Residential shipping with commercial datacenter VPN ($199.99) ➔ Classified as `REVIEW` ➔ Flagged with counterfactual suggestion.
-3. **Card-Testing Attack:** Disposable email, Netherlands proxy IP, 4 recent checkout failures ($649.00) ➔ Classified as `BLOCK` ➔ Pre-capture hold engaged.
-4. **High-Ticket Young Account:** $420.00 purchase on a 3-day-old account ➔ Classified as `REVIEW`.
-5. **Loyal Customer:** 280-day account tenure with zero declines ➔ Classified as `ALLOW`.
+For the full test specification, see [docs/TESTING.md](./docs/TESTING.md).
 
 ---
 
-## 📂 Project Structure
+## ⚠️ Known Limitations
 
-```text
-PayShield AI/
-├── .env.example                     # Root environment configuration template
-├── .gitignore                       # Multi-tier exclusion for keys, databases, logs
-├── package.json                     # Root npm script coordinator
-├── package-lock.json
-├── render.yaml                      # Declarative 1-click Render cloud deployment blueprint
-├── README.md                        # Project documentation
-│
-├── .mcp/
-│   └── apimatic.json                # APIMatic Context Plugin configuration for PayPal v2
-│
-├── client/                          # Frontend React 19 Application
-│   ├── .gitignore
-│   ├── index.html
-│   ├── package.json
-│   ├── tsconfig.json
-│   ├── vite.config.ts               # Vite bundler with Tailwind CSS & /api proxy
-│   ├── public/                      # Static assets & icons
-│   └── src/
-│       ├── App.tsx                  # Main router and shell layout
-│       ├── main.tsx
-│       ├── index.css                # Global styles and design tokens
-│       ├── components/              # Reusable UI components
-│       │   ├── BionisMetricCard.tsx     # KPI metrics with trend indicators
-│       │   ├── CounterfactualBox.tsx    # "What Would Change This Decision?" UI
-│       │   ├── EvidenceCard.tsx         # Observed facts vs inference attribution
-│       │   ├── Navbar.tsx               # Header with environment status badge
-│       │   ├── RiskBadge.tsx            # ALLOW / REVIEW / BLOCK badge
-│       │   ├── SecurityCharts.tsx       # Timeline trend & category radar charts
-│       │   ├── SecurityInsightCards.tsx # Gateway vitals and AI predictions
-│       │   ├── SecurityScoreDonut.tsx   # Visual security health meter
-│       │   ├── StatCard.tsx
-│       │   └── TransactionGrid.tsx      # AG Grid Community triage feed
-│       ├── pages/
-│       │   ├── Dashboard.tsx            # Main merchant command center
-│       │   ├── Investigation.tsx        # 4-section evidence & forensic breakdown
-│       │   ├── SandboxCheckout.tsx      # Interactive storefront simulation
-│       │   ├── AuditTrail.tsx           # Tamper-evident transaction ledger
-│       │   └── Settings.tsx             # PayPal credentials & APIMatic schemas
-│       ├── services/
-│       │   └── api.ts                   # Typed API service client
-│       └── types/
-│           └── index.ts                 # Shared TypeScript interfaces
-│
-└── server/                          # Backend Express & Risk Engine Service
-    ├── .env.example                 # Backend environment variable template
-    ├── .gitignore
-    ├── package.json
-    ├── tsconfig.json
-    ├── src/
-    │   ├── server.ts                # Express app entrypoint & middleware
-    │   ├── config.ts                # Centralized environment configuration
-    │   ├── types/
-    │   │   └── index.ts             # Domain models (Transaction, Assessment, Audit)
-    │   ├── db/
-    │   │   ├── database.ts          # better-sqlite3 wrapper with WAL mode
-    │   │   ├── schema.sql           # DDL schema (transactions, assessments, audits)
-    │   │   └── seeds.ts             # Synthetic benchmark seed transactions
-    │   ├── engine/
-    │   │   ├── rules.ts             # Deterministic rules across 5 signal categories
-    │   │   ├── explainability.ts    # ExplainableRiskEngine & counterfactual logic
-    │   │   └── classifier.ts        # Calibrated logistic regression classifier
-    │   ├── routes/
-    │   │   ├── orders.ts            # Order evaluation, details, and overrides
-    │   │   ├── paypal.ts            # Pre-capture PayPal creation & capture
-    │   │   └── audit.ts             # Tamper-evident audit log query endpoints
-    │   ├── services/
-    │   │   └── paypalClient.ts      # PayPal REST v2 client with OAuth2 token caching
-    │   └── specs/
-    │       └── paypalV2Schema.ts    # Zod schemas for PayPal Orders v2 contract
-    └── tests/
-        └── riskEngine.test.ts       # Vitest automated test suite
-```
+1. **Local SQLite File Storage on Render Free Tier:**
+   Render's free tier uses an ephemeral filesystem. If the container restarts or rebuilds, synthetic transactions reset to the seed baseline. For production deployments with long-term retention, an external database (e.g. Turso / PostgreSQL) or Render persistent disk is recommended.
+2. **In-Memory Rate Limiting:**
+   Velocity spike detection currently measures rapid failed transactions within the local database. Cross-region distributed velocity tracking across multiple server nodes is planned for v2.0.
+3. **Simulated Telemetry in Sandbox:**
+   Because browser sandbox test environments do not have real hardware GPS sensors, IP geolocations and VPN flags are simulated from the test personas during storefront checkout.
 
 ---
 
-## 🔒 Security & Privacy Practices
+## 🔒 Security & Privacy Guarantees
 
-- **Zero Sensitive Card Data:** PayShield AI strictly adheres to PCI-DSS scope reduction. Credit card numbers, expiration dates, and CVVs are never handled, logged, or stored by PayShield servers.
-- **Server-Side Secret Isolation:** PayPal Client IDs, Client Secrets, and OAuth2 bearer tokens reside exclusively on the backend server and are never exposed to the client browser.
-- **Environment Exclusions:** Comprehensive `.gitignore` rules prevent `.env` files, credentials, and local databases (`*.db`, `*.db-wal`, `*.db-shm`) from ever being committed to Git.
-- **Pre-Capture Interception:** High-risk transactions are halted before payment authorization, eliminating fraud chargeback liability.
-- **Tamper-Evident Auditing:** Every decision, manual override, and capture event is stored immutably with timestamps and policy version signatures.
-- **Ethical AI Baseline:** Risk scoring is grounded strictly in technical and behavioral telemetry anomalies (e.g. proxy detection, velocity spikes), never demographic profiling.
+- **PCI-DSS Scope Reduction:** Zero credit card numbers, CVVs, or expiration dates are collected, logged, or stored by PayShield servers.
+- **Server-Side Secret Isolation:** PayPal Client Secret and OAuth2 Bearer tokens reside strictly in the server environment and are never transmitted to client browsers.
+- **SQL Injection Defense:** All SQLite queries use strict parameterized bindings via `better-sqlite3`.
+- **Pre-Capture Interception:** High-risk transactions are halted before payment authorization, stopping chargebacks before they happen.
+- **Ethical AI Baseline:** Risk scoring evaluates technical and behavioral anomalies (proxy hops, velocity bursts, disposable domains), never demographic profiling.
+
+For detailed security policies, see [docs/SECURITY.md](./docs/SECURITY.md).
 
 ---
 
-## ☁️ Deployment (100% Free Cloud Deployment on Render)
+## 📚 Detailed Documentation
 
-PayShield AI is fully packaged for 1-click deployment via the included [`render.yaml`](./render.yaml) blueprint on **Render's Free Tier** ($0 budget, no credit card required):
-
-### Option 1: 1-Click Render Blueprint (Recommended)
-1. Push your repository to your GitHub account (`https://github.com/harsha-dev78/Payshield-AI`).
-2. Sign in to [Render Dashboard](https://dashboard.render.com) using your GitHub account (Free, no credit card).
-3. Click **New +** → **Blueprint**.
-4. Select your `Payshield-AI` repository and click **Connect**.
-5. Render detects `render.yaml` and deploys the unified **`payshield-ai`** Web Service:
-   - **Runtime:** Node.js
-   - **Build Command:** `npm install && npm run build`
-   - **Start Command:** `npm start`
-   - **Plan:** Free ($0)
-6. Optional: Enter your PayPal Sandbox credentials if you wish to run with live sandbox keys. (If left blank, PayShield automatically runs in its zero-dependency offline mock simulator mode).
-7. Click **Apply**. Within 2–3 minutes, your live public URL (`https://payshield-ai.onrender.com` or custom Render name) will be online with automatic SSL (HTTPS).
-
-### Option 2: Manual Web Service Setup on Render
-1. In Render Dashboard, click **New +** → **Web Service**.
-2. Connect your GitHub repository.
-3. Configure settings:
-   - **Name:** `payshield-ai`
-   - **Runtime:** `Node`
-   - **Build Command:** `npm install && npm run build`
-   - **Start Command:** `npm start`
-   - **Instance Type:** `Free`
-4. Add Environment Variables:
-   - `NODE_ENV` = `production`
-   - `PORT` = `10000`
-   - `PAYPAL_API_BASE` = `https://api-m.sandbox.paypal.com`
-   - `RISK_THRESHOLD_ALLOW` = `30`
-   - `RISK_THRESHOLD_REVIEW` = `65`
-5. Click **Create Web Service**.
-
-> **Note on Free Tier Sleep:** Free Render instances spin down after 15 minutes of inactivity. The initial HTTP request may take ~30–50 seconds to wake up the service. Subsequent requests respond with sub-second latency. Keep the health endpoint (`/api/health`) warm if preparing for a live hackathon demonstration!
+- 📐 **[System Architecture](docs/ARCHITECTURE.md)** — In-depth architectural diagrams, component boundaries, and pipeline specifications.
+- 🛠️ **[Setup & Installation Guide](docs/SETUP.md)** — Comprehensive local environment and cloud deployment walkthrough.
+- 🧪 **[Testing & Quality Guide](docs/TESTING.md)** — Vitest specifications, test cases, and quality verification standards.
+- 🔒 **[Security & Privacy Policy](docs/SECURITY.md)** — Defense-in-depth posture, PCI-DSS compliance, and responsible disclosure.
 
 ---
 
 ## 📄 License
 
-This project is licensed under the **MIT License**. Built for the **PayPal AI Hackathon 2026**.
+This project is licensed under the **[MIT License](./LICENSE)**. Built with pride for the **PayPal AI Hackathon 2026**.
