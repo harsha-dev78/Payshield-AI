@@ -10,7 +10,7 @@ services:
     name: payshield-ai
     runtime: node
     plan: free
-    buildCommand: npm install && npm run build
+    buildCommand: npm install --include=dev && npm run build
     startCommand: npm start
     envVars:
       - key: NODE_ENV

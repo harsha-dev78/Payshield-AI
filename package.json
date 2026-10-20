@@ -1,7 +1,10 @@
 {
   "name": "payshield-ai",
   "version": "1.0.0",
-  "description": "PayShield AI — Evidence-Based Payment Security Agent & PayPal Sandbox Gateway",
+  "workspaces": [
+    "server",
+    "client"
+  ],
   "scripts": {
     "dev": "concurrently \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
     "dev:server": "npm run dev --prefix server",
@@ -10,7 +13,7 @@
     "start": "npm run start --prefix server",
     "test": "npm run test --prefix server"
   },
-  "devDependencies": {
+  "dependencies": {
     "concurrently": "^9.2.5"
   }
 }
