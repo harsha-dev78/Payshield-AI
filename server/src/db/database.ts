@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS transactions (
   items_json TEXT NOT NULL,
   telemetry_json TEXT NOT NULL,
   payment_status TEXT NOT NULL DEFAULT 'PENDING',
+  payment_source TEXT NOT NULL DEFAULT 'MOCK',
   paypal_order_id TEXT,
   paypal_capture_id TEXT,
   created_at TEXT NOT NULL,
@@ -84,27 +85,56 @@ for (const p of schemaCandidates) {
 
 db.exec(schema);
 
+// Migration: Ensure payment_source column exists in existing SQLite databases
+try {
+  db.exec("ALTER TABLE transactions ADD COLUMN payment_source TEXT DEFAULT 'MOCK'");
+} catch {
+  // Column already exists
+}
+
 export const SYNTHETIC_BENCHMARK_ORDER_IDS = new Set([
   'ORD-7102', 'ORD-9430', 'ORD-3199', 'ORD-8821', 
   'ORD-4015', 'ORD-6204', 'ORD-1192', 'ORD-5541'
 ]);
 
+function inferPaymentSource(orderId: string, paypalOrderId?: string, dbSource?: string): 'PAYPAL_SANDBOX' | 'MOCK_SIMULATOR' | 'SYNTHETIC_BENCHMARK' | 'MOCK' {
+  if (dbSource && dbSource !== 'MOCK') {
+    return dbSource as any;
+  }
+  if (SYNTHETIC_BENCHMARK_ORDER_IDS.has(orderId) || orderId.startsWith('ORD-SYNTH-')) {
+    return 'SYNTHETIC_BENCHMARK';
+  }
+  if (!paypalOrderId || paypalOrderId.startsWith('PAYPAL-SANDBOX-') || paypalOrderId.startsWith('PAYPAL-ORD-')) {
+    return 'MOCK_SIMULATOR';
+  }
+  return 'PAYPAL_SANDBOX';
+}
+
 export const dbService = {
   // Save or update transaction
-  saveTransaction(tx: TransactionData, paymentStatus = 'PENDING', paypalOrderId?: string): void {
+  saveTransaction(tx: TransactionData, paymentStatus = 'PENDING', paypalOrderId?: string, paymentSource?: string): void {
     const now = new Date().toISOString();
+    const source = paymentSource || tx.paymentSource || (
+      SYNTHETIC_BENCHMARK_ORDER_IDS.has(tx.orderId)
+        ? 'SYNTHETIC_BENCHMARK'
+        : (!paypalOrderId || paypalOrderId.startsWith('PAYPAL-SANDBOX-') || paypalOrderId.startsWith('PAYPAL-ORD-')
+            ? 'MOCK_SIMULATOR'
+            : 'PAYPAL_SANDBOX')
+    );
+
     const stmt = db.prepare(`
       INSERT INTO transactions (
         order_id, amount, currency, customer_name, customer_email, 
         customer_phone, items_json, telemetry_json, payment_status,
-        paypal_order_id, created_at, updated_at
+        payment_source, paypal_order_id, created_at, updated_at
       ) VALUES (
         @orderId, @amount, @currency, @name, @email,
         @phone, @items, @telemetry, @status,
-        @paypalId, @createdAt, @updatedAt
+        @source, @paypalId, @createdAt, @updatedAt
       )
       ON CONFLICT(order_id) DO UPDATE SET
         payment_status = excluded.payment_status,
+        payment_source = COALESCE(excluded.payment_source, transactions.payment_source),
         paypal_order_id = COALESCE(excluded.paypal_order_id, transactions.paypal_order_id),
         updated_at = excluded.updated_at
     `);
@@ -119,17 +149,19 @@ export const dbService = {
       items: JSON.stringify(tx.items),
       telemetry: JSON.stringify(tx.telemetry),
       status: paymentStatus,
+      source,
       paypalId: paypalOrderId || null,
       createdAt: tx.createdAt || now,
       updatedAt: now,
     });
   },
 
-  getTransaction(orderId: string): (TransactionData & { paymentStatus: string; paypalOrderId?: string; paypalCaptureId?: string; isSynthetic?: boolean }) | null {
+  getTransaction(orderId: string): (TransactionData & { paymentStatus: string; paymentSource: 'PAYPAL_SANDBOX' | 'MOCK_SIMULATOR' | 'SYNTHETIC_BENCHMARK' | 'MOCK'; paypalOrderId?: string; paypalCaptureId?: string; isSynthetic?: boolean }) | null {
     const row = db.prepare('SELECT * FROM transactions WHERE order_id = ?').get(orderId) as any;
     if (!row) return null;
 
     const isSynthetic = SYNTHETIC_BENCHMARK_ORDER_IDS.has(row.order_id) || Boolean(row.order_id?.startsWith('ORD-SYNTH-'));
+    const paymentSource = inferPaymentSource(row.order_id, row.paypal_order_id, row.payment_source);
 
     return {
       orderId: row.order_id,
@@ -144,6 +176,7 @@ export const dbService = {
       telemetry: JSON.parse(row.telemetry_json),
       createdAt: row.created_at,
       paymentStatus: row.payment_status,
+      paymentSource,
       paypalOrderId: row.paypal_order_id || undefined,
       paypalCaptureId: row.paypal_capture_id || undefined,
       isSynthetic,
@@ -170,6 +203,7 @@ export const dbService = {
       }
 
       const isSynthetic = SYNTHETIC_BENCHMARK_ORDER_IDS.has(r.order_id) || Boolean(r.order_id?.startsWith('ORD-SYNTH-'));
+      const paymentSource = inferPaymentSource(r.order_id, r.paypal_order_id, r.payment_source);
 
       return {
         orderId: r.order_id,
@@ -184,11 +218,13 @@ export const dbService = {
         },
         telemetry,
         paymentStatus: r.payment_status,
+        paymentSource,
         createdAt: r.created_at,
         riskScore: r.overall_score !== null ? r.overall_score : null,
         riskTier: r.tier || 'UNASSESSED',
         confidence: r.confidence !== null ? r.confidence : null,
         paypalOrderId: r.paypal_order_id,
+        paypalCaptureId: r.paypal_capture_id,
         isSynthetic,
       };
     });
@@ -202,6 +238,16 @@ export const dbService = {
       WHERE order_id = ?
     `);
     stmt.run(status, paypalCaptureId || null, now, orderId);
+  },
+
+  cancelTransaction(orderId: string): void {
+    const now = new Date().toISOString();
+    const stmt = db.prepare(`
+      UPDATE transactions 
+      SET payment_status = 'CANCELLED', updated_at = ?
+      WHERE order_id = ?
+    `);
+    stmt.run(now, orderId);
   },
 
   saveRiskAssessment(assessment: RiskAssessment): void {

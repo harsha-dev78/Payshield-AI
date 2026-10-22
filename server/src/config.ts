@@ -16,7 +16,13 @@ export const CONFIG = {
   PAYPAL: {
     CLIENT_ID: process.env.PAYPAL_CLIENT_ID || 'sandbox_mock_client_id',
     CLIENT_SECRET: process.env.PAYPAL_CLIENT_SECRET || 'sandbox_mock_client_secret',
-    API_BASE: process.env.PAYPAL_API_BASE || 'https://api-m.sandbox.paypal.com',
+    ENVIRONMENT: (process.env.PAYPAL_ENVIRONMENT || 'sandbox').toLowerCase(),
+    API_BASE:
+      process.env.PAYPAL_API_BASE ||
+      ((process.env.PAYPAL_ENVIRONMENT || 'sandbox').toLowerCase() === 'live' ||
+      (process.env.PAYPAL_ENVIRONMENT || 'sandbox').toLowerCase() === 'production'
+        ? 'https://api-m.paypal.com'
+        : 'https://api-m.sandbox.paypal.com'),
   },
   RISK: {
     ALLOW_THRESHOLD: parseInt(process.env.RISK_THRESHOLD_ALLOW || '30', 10),

@@ -1,36 +1,73 @@
 import { CONFIG } from '../config.js';
 
-interface PayPalTokenResponse {
+export interface PayPalTokenResponse {
   access_token: string;
   token_type: string;
   expires_in: number;
 }
 
+export interface PayPalOrderDetails {
+  id: string;
+  status: string;
+  intent?: string;
+  purchase_units?: any[];
+  links?: { href: string; rel: string; method: string }[];
+}
+
+export class PayPalError extends Error {
+  public statusCode: number;
+  public issue?: string;
+  public details?: any;
+
+  constructor(message: string, statusCode: number, issue?: string, details?: any) {
+    super(message);
+    this.name = 'PayPalError';
+    this.statusCode = statusCode;
+    this.issue = issue;
+    this.details = details;
+  }
+}
+
 export class PayPalClient {
-  private clientId: string;
-  private clientSecret: string;
-  private apiBase: string;
   private cachedToken: string | null = null;
   private tokenExpiresAt = 0;
 
-  constructor() {
-    this.clientId = CONFIG.PAYPAL.CLIENT_ID;
-    this.clientSecret = CONFIG.PAYPAL.CLIENT_SECRET;
-    this.apiBase = CONFIG.PAYPAL.API_BASE;
+  private get clientId(): string {
+    return CONFIG.PAYPAL.CLIENT_ID || '';
+  }
+
+  private get clientSecret(): string {
+    return CONFIG.PAYPAL.CLIENT_SECRET || '';
+  }
+
+  public get apiBase(): string {
+    return CONFIG.PAYPAL.API_BASE || 'https://api-m.sandbox.paypal.com';
   }
 
   public isMockConfigured(): boolean {
-    return (
-      !this.clientId ||
-      this.clientId === 'your_sandbox_client_id_here' ||
-      this.clientId === 'sandbox_mock_client_id' ||
-      !this.clientSecret ||
-      this.clientSecret === 'your_sandbox_client_secret_here' ||
-      this.clientSecret === 'sandbox_mock_client_secret'
-    );
+    const id = this.clientId.trim();
+    const secret = this.clientSecret.trim();
+
+    const mockPlaceholders = new Set([
+      '',
+      'your_sandbox_client_id_here',
+      'your_paypal_sandbox_client_id_here',
+      'sandbox_mock_client_id',
+      'your_client_id',
+    ]);
+
+    const mockSecretPlaceholders = new Set([
+      '',
+      'your_sandbox_client_secret_here',
+      'your_paypal_sandbox_client_secret_here',
+      'sandbox_mock_client_secret',
+      'your_client_secret',
+    ]);
+
+    return mockPlaceholders.has(id) || mockSecretPlaceholders.has(secret);
   }
 
-  private async getAccessToken(): Promise<string> {
+  public async getAccessToken(): Promise<string> {
     if (this.cachedToken && Date.now() < this.tokenExpiresAt) {
       return this.cachedToken;
     }
@@ -54,7 +91,16 @@ export class PayPalClient {
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`PayPal OAuth Authentication Failed: ${response.status} - ${errorText}`);
+      let issue = 'OAUTH_FAILED';
+      let message = `PayPal OAuth Authentication Failed: ${response.status}`;
+      try {
+        const json = JSON.parse(errorText);
+        issue = json.error || issue;
+        message = json.error_description ? `${message} - ${json.error_description}` : message;
+      } catch {
+        message = `${message} - ${errorText}`;
+      }
+      throw new PayPalError(message, response.status, issue, errorText);
     }
 
     const data = (await response.json()) as PayPalTokenResponse;
@@ -67,7 +113,9 @@ export class PayPalClient {
     referenceId: string,
     amount: number,
     currency = 'USD',
-    description = 'PayShield Verified Merchant Checkout'
+    description = 'PayShield Verified Merchant Checkout',
+    returnUrl?: string,
+    cancelUrl?: string
   ): Promise<{ id: string; status: string; links: any[] }> {
     if (this.isMockConfigured()) {
       const mockOrderId = `PAYPAL-SANDBOX-${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
@@ -78,6 +126,11 @@ export class PayPalClient {
           {
             href: `https://www.sandbox.paypal.com/checkoutnow?token=${mockOrderId}`,
             rel: 'approve',
+            method: 'GET',
+          },
+          {
+            href: `${this.apiBase}/v2/checkout/orders/${mockOrderId}`,
+            rel: 'self',
             method: 'GET',
           },
         ],
@@ -93,7 +146,7 @@ export class PayPalClient {
           description,
           amount: {
             currency_code: currency,
-            value: amount.toFixed(2),
+            value: Number(amount).toFixed(2),
           },
         },
       ],
@@ -101,8 +154,8 @@ export class PayPalClient {
         brand_name: 'PayShield Secure Checkout',
         landing_page: 'NO_PREFERENCE',
         user_action: 'PAY_NOW',
-        return_url: 'http://localhost:5173/checkout?status=success',
-        cancel_url: 'http://localhost:5173/checkout?status=cancelled',
+        return_url: returnUrl || 'http://localhost:5173/?paypal_action=approved',
+        cancel_url: cancelUrl || 'http://localhost:5173/?paypal_action=cancelled',
       },
     };
 
@@ -117,10 +170,55 @@ export class PayPalClient {
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`PayPal Order Creation Failed: ${response.status} - ${errorText}`);
+      let issue = 'ORDER_CREATION_FAILED';
+      let message = `PayPal Order Creation Failed: ${response.status}`;
+      try {
+        const json = JSON.parse(errorText);
+        issue = json.details?.[0]?.issue || json.name || issue;
+        message = json.details?.[0]?.description || json.message || `${message} - ${errorText}`;
+      } catch {
+        message = `${message} - ${errorText}`;
+      }
+      throw new PayPalError(message, response.status, issue, errorText);
     }
 
     return (await response.json()) as { id: string; status: string; links: any[] };
+  }
+
+  public async getOrder(paypalOrderId: string): Promise<PayPalOrderDetails> {
+    if (this.isMockConfigured() || paypalOrderId.startsWith('PAYPAL-SANDBOX-') || paypalOrderId.startsWith('PAYPAL-ORD-')) {
+      return {
+        id: paypalOrderId,
+        status: 'APPROVED',
+        intent: 'CAPTURE',
+        links: [],
+      };
+    }
+
+    const token = await this.getAccessToken();
+    const response = await fetch(`${this.apiBase}/v2/checkout/orders/${paypalOrderId}`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      let issue = 'ORDER_FETCH_FAILED';
+      let message = `Failed to fetch PayPal order: ${response.status}`;
+      try {
+        const json = JSON.parse(errorText);
+        issue = json.details?.[0]?.issue || json.name || issue;
+        message = json.details?.[0]?.description || json.message || `${message} - ${errorText}`;
+      } catch {
+        message = `${message} - ${errorText}`;
+      }
+      throw new PayPalError(message, response.status, issue, errorText);
+    }
+
+    return (await response.json()) as PayPalOrderDetails;
   }
 
   public async captureOrder(paypalOrderId: string): Promise<{
@@ -129,7 +227,31 @@ export class PayPalClient {
     captureId: string;
     raw: any;
   }> {
-    if (this.isMockConfigured() || paypalOrderId.startsWith('PAYPAL-SANDBOX-')) {
+    if (paypalOrderId.startsWith('PAYPAL-UNAPPROVED-')) {
+      throw new PayPalError(
+        'Order has not been approved by the buyer on PayPal.',
+        422,
+        'ORDER_NOT_APPROVED'
+      );
+    }
+
+    if (paypalOrderId.startsWith('PAYPAL-DECLINED-')) {
+      throw new PayPalError(
+        'Instrument declined in PayPal Sandbox',
+        400,
+        'INSTRUMENT_DECLINED'
+      );
+    }
+
+    if (paypalOrderId.startsWith('PAYPAL-ALREADY-CAPTURED-')) {
+      throw new PayPalError(
+        'Order has already been captured',
+        409,
+        'ORDER_ALREADY_CAPTURED'
+      );
+    }
+
+    if (this.isMockConfigured() || paypalOrderId.startsWith('PAYPAL-SANDBOX-') || paypalOrderId.startsWith('PAYPAL-ORD-')) {
       const mockCaptureId = `CAP-${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
       return {
         id: paypalOrderId,
@@ -166,7 +288,17 @@ export class PayPalClient {
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`PayPal Order Capture Failed: ${response.status} - ${errorText}`);
+      let issue = 'ORDER_CAPTURE_FAILED';
+      let message = `PayPal Order Capture Failed: ${response.status}`;
+      try {
+        const json = JSON.parse(errorText);
+        issue = json.details?.[0]?.issue || json.name || issue;
+        const desc = json.details?.[0]?.description || json.message;
+        message = desc ? `PayPal Error (${issue}): ${desc}` : `${message} - ${errorText}`;
+      } catch {
+        message = `${message} - ${errorText}`;
+      }
+      throw new PayPalError(message, response.status, issue, errorText);
     }
 
     const data = (await response.json()) as any;

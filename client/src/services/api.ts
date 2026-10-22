@@ -66,22 +66,32 @@ export const api = {
     return res.json();
   },
 
-  async createPayPalOrder(transaction: TransactionData): Promise<{
+  async createPayPalOrder(
+    transaction: TransactionData,
+    returnUrl?: string,
+    cancelUrl?: string
+  ): Promise<{
     paypalOrderId: string;
     localOrderId: string;
     assessment: RiskAssessment;
     status: string;
+    approveUrl?: string;
+    mode: 'PAYPAL_SANDBOX' | 'MOCK_SIMULATOR';
+    links?: { href: string; rel: string; method: string }[];
   }> {
     const res = await fetch(`${API_BASE}/paypal/create-order`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ transaction }),
+      body: JSON.stringify({ transaction, returnUrl, cancelUrl }),
     });
 
     const data = await res.json();
     if (!res.ok) {
       const err = new Error(data.message || data.error || 'Failed to create PayPal order');
       (err as any).assessment = data.assessment;
+      (err as any).issue = data.issue;
+      (err as any).status = res.status;
+      (err as any).data = data;
       throw err;
     }
     return data;
@@ -93,9 +103,25 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ paypalOrderId, localOrderId }),
     });
+    const data = await res.json();
+    if (!res.ok) {
+      const err = new Error(data.message || data.error || 'Capture failed');
+      (err as any).issue = data.issue;
+      (err as any).status = res.status;
+      throw err;
+    }
+    return data;
+  },
+
+  async cancelPayPalOrder(localOrderId: string, paypalOrderId?: string, reason?: string) {
+    const res = await fetch(`${API_BASE}/paypal/cancel-order`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ localOrderId, paypalOrderId, reason }),
+    });
     if (!res.ok) {
       const err = await res.json();
-      throw new Error(err.message || err.error || 'Capture failed');
+      throw new Error(err.message || err.error || 'Failed to cancel order');
     }
     return res.json();
   },
@@ -108,7 +134,15 @@ export const api = {
     return data.logs;
   },
 
-  async getPayPalStatus() {
+  async getPayPalStatus(): Promise<{
+    mode: 'MOCK_SIMULATOR' | 'PAYPAL_SANDBOX';
+    apiBase: string;
+    clientIdConfigured: boolean;
+    clientSecretConfigured: boolean;
+    environment: string;
+    riskEngineActive: boolean;
+    policyVersion: string;
+  }> {
     const res = await fetch(`${API_BASE}/paypal/status`);
     if (!res.ok) throw new Error('Failed to fetch PayPal status');
     return res.json();

@@ -197,13 +197,17 @@ export const Investigation: React.FC<InvestigationProps> = ({ orderId, onBack, o
             <span className="text-xs font-bold text-slate-900 uppercase tracking-wider">
               Order Summary
             </span>
-            {tx.isSynthetic ? (
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200" title="Pre-configured synthetic benchmark transaction">
-                Simulated Benchmark Dataset
+            {tx.paymentSource === 'PAYPAL_SANDBOX' ? (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 shadow-xs" title="Genuine PayPal Sandbox Gateway">
+                Genuine PayPal Sandbox
+              </span>
+            ) : tx.paymentSource === 'MOCK_SIMULATOR' ? (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200" title="Offline Mock Simulator">
+                Mock Simulator
               </span>
             ) : (
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200" title="Generated via Storefront Checkout">
-                Live Storefront Checkout
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200" title="Pre-configured synthetic benchmark transaction">
+                Simulated Benchmark Dataset
               </span>
             )}
           </div>
@@ -238,14 +242,26 @@ export const Investigation: React.FC<InvestigationProps> = ({ orderId, onBack, o
                 ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                 : tx.paymentStatus === 'BLOCKED'
                 ? 'bg-rose-50 text-rose-700 border-rose-200'
+                : tx.paymentStatus === 'CANCELLED'
+                ? 'bg-slate-100 text-slate-700 border-slate-300'
+                : tx.paymentStatus === 'DECLINED'
+                ? 'bg-rose-50 text-rose-700 border-rose-200'
                 : 'bg-amber-50 text-amber-700 border-amber-200'
             }`}>
-              {tx.paymentStatus === 'CAPTURED' ? 'Paid' : tx.paymentStatus === 'BLOCKED' ? 'Blocked' : 'Review'}
+              {tx.paymentStatus === 'CAPTURED' ? 'Paid' : tx.paymentStatus === 'BLOCKED' ? 'Blocked (No Payment Created)' : tx.paymentStatus === 'CANCELLED' ? 'Cancelled' : tx.paymentStatus === 'DECLINED' ? 'Declined' : 'Review Required'}
             </span>
           </div>
         </div>
 
-        {/* Customer Details */}
+        {/* High Risk Block Notice */}
+        {tx.paymentStatus === 'BLOCKED' && (
+          <div className="mt-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 text-xs flex items-center gap-2">
+            <ShieldAlert className="w-4 h-4 text-rose-600 shrink-0" />
+            <span><strong>Pre-Capture Block Enforced:</strong> This attempt was blocked before PayPal order creation. No PayPal order or payment was authorized or captured.</span>
+          </div>
+        )}
+
+        {/* Customer Details & Gateway IDs */}
         <div className="mt-4 pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-600">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center">
@@ -253,11 +269,22 @@ export const Investigation: React.FC<InvestigationProps> = ({ orderId, onBack, o
             </div>
             <span>Customer: <strong className="text-slate-900">{tx.customer.name}</strong> ({tx.customer.email})</span>
           </div>
-          {tx.paypalOrderId && (
-            <div className="text-slate-500 font-mono text-xs">
-              PayPal Order ID: <span className="text-blue-600 font-semibold">{tx.paypalOrderId}</span>
-            </div>
-          )}
+          <div className="flex items-center gap-3 flex-wrap">
+            {tx.paypalOrderId ? (
+              <div className="text-slate-500 font-mono text-xs">
+                PayPal Order: <span className="text-blue-600 font-semibold">{tx.paypalOrderId}</span>
+              </div>
+            ) : tx.paymentStatus === 'BLOCKED' ? (
+              <div className="text-slate-400 font-mono text-xs">
+                PayPal Order: <span className="text-slate-500 italic">None (Blocked pre-capture)</span>
+              </div>
+            ) : null}
+            {tx.paypalCaptureId && (
+              <div className="text-slate-500 font-mono text-xs">
+                Capture ID: <span className="text-emerald-700 font-semibold">{tx.paypalCaptureId}</span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

@@ -39,6 +39,7 @@ export interface TransactionData {
   telemetry: CustomerTelemetry;
   createdAt: string;
   paymentStatus?: string;
+  paymentSource?: 'PAYPAL_SANDBOX' | 'MOCK_SIMULATOR' | 'SYNTHETIC_BENCHMARK' | 'MOCK';
   riskScore?: number | null;
   riskTier?: RiskTier | 'UNASSESSED';
   confidence?: number | null;
@@ -90,7 +91,7 @@ export interface AuditRecord {
   id: string;
   transactionId: string;
   timestamp: string;
-  action: 'RISK_ASSESSED' | 'ORDER_CREATED' | 'BUYER_APPROVED' | 'PAYMENT_CAPTURED' | 'PAYMENT_BLOCKED' | 'MERCHANT_OVERRIDE';
+  action: 'RISK_ASSESSED' | 'ORDER_CREATED' | 'BUYER_APPROVED' | 'PAYMENT_CAPTURED' | 'PAYMENT_BLOCKED' | 'REVIEW_HELD' | 'MERCHANT_OVERRIDE' | 'BUYER_CANCELLED' | 'PAYMENT_DECLINED' | 'PAYMENT_FAILED';
   actor: 'SYSTEM_RISK_ENGINE' | 'PAYPAL_GATEWAY' | 'MERCHANT_ADMIN' | 'BUYER' | 'GUEST_JUDGE';
   details: Record<string, any>;
   policyVersion: string;

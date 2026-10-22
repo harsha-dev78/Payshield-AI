@@ -19,6 +19,8 @@ services:
         value: 10000
       - key: PAYPAL_API_BASE
         value: https://api-m.sandbox.paypal.com
+      - key: PAYPAL_ENVIRONMENT
+        value: sandbox
       - key: PAYPAL_CLIENT_ID
         sync: false
       - key: PAYPAL_CLIENT_SECRET

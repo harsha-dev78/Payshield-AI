@@ -43,6 +43,10 @@ export function App() {
 
   useEffect(() => {
     loadInitialData();
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('paypal_action')) {
+      setActiveTab('checkout');
+    }
   }, [loadInitialData]);
 
   const handleSelectTransaction = (orderId: string) => {

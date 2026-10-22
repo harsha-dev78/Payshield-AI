@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS transactions (
   items_json TEXT NOT NULL,
   telemetry_json TEXT NOT NULL,
   payment_status TEXT NOT NULL DEFAULT 'PENDING',
+  payment_source TEXT NOT NULL DEFAULT 'MOCK',
   paypal_order_id TEXT,
   paypal_capture_id TEXT,
   created_at TEXT NOT NULL,

@@ -287,12 +287,27 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       : 'bg-[#ecfdf5] text-[#059669]';
 
                     // Payment status pill
-                    const statusLabel = tx.paymentStatus === 'CAPTURED' ? 'Completed' : tx.paymentStatus === 'BLOCKED' ? 'Blocked' : 'Review';
-                    const statusBadgeStyle = statusLabel === 'Completed'
-                      ? 'bg-[#ecfdf5] text-[#059669]'
-                      : statusLabel === 'Blocked'
-                      ? 'bg-[#fee2e2] text-[#dc2626]'
-                      : 'bg-[#fef3c7] text-[#d97706]';
+                    const statusLabel =
+                      tx.paymentStatus === 'CAPTURED'
+                        ? 'Completed'
+                        : tx.paymentStatus === 'BLOCKED'
+                        ? 'Blocked'
+                        : tx.paymentStatus === 'CANCELLED'
+                        ? 'Cancelled'
+                        : tx.paymentStatus === 'DECLINED'
+                        ? 'Declined'
+                        : 'Review Required';
+
+                    const statusBadgeStyle =
+                      statusLabel === 'Completed'
+                        ? 'bg-[#ecfdf5] text-[#059669]'
+                        : statusLabel === 'Blocked'
+                        ? 'bg-[#fee2e2] text-[#dc2626]'
+                        : statusLabel === 'Cancelled'
+                        ? 'bg-slate-100 text-slate-600'
+                        : statusLabel === 'Declined'
+                        ? 'bg-[#fee2e2] text-[#dc2626]'
+                        : 'bg-[#fef3c7] text-[#d97706]';
 
                     return (
                       <tr 
@@ -300,9 +315,20 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         onClick={() => onSelectTransaction(tx.orderId)}
                         className="hover:bg-slate-50/80 transition-colors cursor-pointer group"
                       >
-                        {/* Order ID */}
+                        {/* Order ID & Source Badge */}
                         <td className="py-3.5 px-5 font-semibold text-slate-800">
-                          {tx.orderId}
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span>{tx.orderId}</span>
+                            {tx.paymentSource === 'PAYPAL_SANDBOX' ? (
+                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 font-bold" title="Genuine PayPal Sandbox">
+                                Sandbox
+                              </span>
+                            ) : tx.paymentSource === 'MOCK_SIMULATOR' ? (
+                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200 font-semibold" title="Mock Simulator">
+                                Mock
+                              </span>
+                            ) : null}
+                          </div>
                         </td>
 
                         {/* Amount */}

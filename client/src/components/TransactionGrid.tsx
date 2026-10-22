@@ -57,7 +57,6 @@ export const TransactionGrid: React.FC<TransactionGridProps> = ({
         pinned: 'left',
         cellRenderer: (params: any) => {
           const isSelected = params.value === selectedOrderId;
-          const isSynth = params.data?.isSynthetic ?? false;
           const createdAt = params.data?.createdAt ? new Date(params.data.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
           return (
             <div className="flex flex-col justify-center h-full py-1 leading-normal">
@@ -65,13 +64,17 @@ export const TransactionGrid: React.FC<TransactionGridProps> = ({
                 <span className={`font-mono text-xs font-semibold ${isSelected ? 'text-cyan-400' : 'text-slate-100 hover:text-cyan-400'}`}>
                   {params.value}
                 </span>
-                {isSynth ? (
-                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-950/80 text-indigo-300 border border-indigo-800/60 font-semibold" title="Simulated Benchmark Dataset">
-                    Demo
+                {params.data?.paymentSource === 'PAYPAL_SANDBOX' ? (
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-950/90 text-blue-300 border border-blue-700/80 font-bold tracking-tight" title="Verified PayPal Sandbox Gateway">
+                    PayPal Sandbox
+                  </span>
+                ) : params.data?.paymentSource === 'MOCK_SIMULATOR' ? (
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-purple-950/80 text-purple-300 border border-purple-800/60 font-semibold" title="Offline Mock Simulator">
+                    Mock Demo
                   </span>
                 ) : (
-                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-950/80 text-emerald-300 border border-emerald-800/60 font-semibold" title="Live Storefront Checkout">
-                    Live
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-950/80 text-indigo-300 border border-indigo-800/60 font-semibold" title="Simulated Benchmark Dataset">
+                    Benchmark
                   </span>
                 )}
               </div>
@@ -128,11 +131,27 @@ export const TransactionGrid: React.FC<TransactionGridProps> = ({
         width: 130,
         cellRenderer: (params: any) => {
           const raw = params.value || 'PENDING';
-          const label = raw === 'CAPTURED' ? 'Paid' : raw === 'BLOCKED' ? 'Blocked' : 'Pending';
-          const badgeClass = 
+          const label =
+            raw === 'CAPTURED'
+              ? 'Paid'
+              : raw === 'BLOCKED'
+              ? 'Blocked'
+              : raw === 'CANCELLED'
+              ? 'Cancelled'
+              : raw === 'DECLINED'
+              ? 'Declined'
+              : raw === 'PENDING_RISK_REVIEW'
+              ? 'Review Required'
+              : 'Pending';
+
+          const badgeClass =
             raw === 'CAPTURED'
               ? 'bg-[#06281e] text-[#34d399] border-[#065f46]'
               : raw === 'BLOCKED'
+              ? 'bg-[#2d0b12] text-[#f87171] border-[#7f1d1d]'
+              : raw === 'CANCELLED'
+              ? 'bg-[#1e293b] text-slate-400 border-slate-700'
+              : raw === 'DECLINED'
               ? 'bg-[#2d0b12] text-[#f87171] border-[#7f1d1d]'
               : 'bg-[#2e1c07] text-[#fbbf24] border-[#78350f]';
 

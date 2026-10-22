@@ -72,15 +72,19 @@ seedSyntheticDataIfNeeded();
 // Start HTTP server binding to 0.0.0.0 for containerized cloud hosts
 const PORT = CONFIG.PORT;
 const HOST = '0.0.0.0';
-app.listen(PORT, HOST, () => {
-  console.log(`=======================================================`);
-  console.log(`🛡️  PayShield AI Server running on port ${PORT}`);
-  console.log(`📡  API Base: http://${HOST}:${PORT}/api`);
-  console.log(`⚖️  Risk Policy: ${CONFIG.RISK.POLICY_VERSION}`);
-  if (clientDistPath) {
-    console.log(`📦  Serving Static UI from: ${clientDistPath}`);
-  }
-  console.log(`=======================================================`);
-});
 
+if (CONFIG.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, HOST, () => {
+    console.log(`=======================================================`);
+    console.log(`🛡️  PayShield AI Server running on port ${PORT}`);
+    console.log(`📡  API Base: http://${HOST}:${PORT}/api`);
+    console.log(`⚖️  Risk Policy: ${CONFIG.RISK.POLICY_VERSION}`);
+    if (clientDistPath) {
+      console.log(`📦  Serving Static UI from: ${clientDistPath}`);
+    }
+    console.log(`=======================================================`);
+  });
+}
+
+export { app };
 export default app;
