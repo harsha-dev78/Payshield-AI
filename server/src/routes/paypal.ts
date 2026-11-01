@@ -4,41 +4,62 @@ import { dbService } from '../db/database.js';
 import { riskEngine } from '../engine/explainability.js';
 import { CONFIG } from '../config.js';
 import { TransactionData } from '../types/index.js';
+import { validateTransactionIntegrity } from '../specs/transactionSchema.js';
 
 export const paypalRouter = Router();
 
-// GET /api/paypal/status - Safe configuration inspector
-paypalRouter.get('/status', (req: Request, res: Response) => {
+// GET /api/paypal/status & GET /api/paypal/health - Secure PayPal configuration & live authentication health check
+const handlePayPalHealthCheck = async (req: Request, res: Response) => {
   const isMock = paypalClient.isMockConfigured();
+  const authCheck = await paypalClient.verifyAuthentication();
+
   res.json({
+    status: authCheck.authenticated ? 'healthy' : 'degraded',
     mode: isMock ? 'MOCK_SIMULATOR' : 'PAYPAL_SANDBOX',
     apiBase: CONFIG.PAYPAL.API_BASE,
+    authenticated: authCheck.authenticated,
+    authLatencyMs: authCheck.authLatencyMs,
+    authError: authCheck.error,
     clientIdConfigured: !isMock,
     clientSecretConfigured: !isMock,
     environment: CONFIG.PAYPAL.ENVIRONMENT,
     riskEngineActive: true,
     policyVersion: CONFIG.RISK.POLICY_VERSION,
+    verifiedAt: new Date().toISOString(),
   });
-});
+};
+
+paypalRouter.get('/status', handlePayPalHealthCheck);
+paypalRouter.get('/health', handlePayPalHealthCheck);
 
 // POST /api/paypal/create-order - Enforces risk gate before PayPal order creation
 paypalRouter.post('/create-order', async (req: Request, res: Response) => {
   try {
-    const { transaction, returnUrl: clientReturnUrl, cancelUrl: clientCancelUrl } = req.body as {
-      transaction: TransactionData;
+    const { transaction: rawTransaction, returnUrl: clientReturnUrl, cancelUrl: clientCancelUrl } = req.body as {
+      transaction: unknown;
       returnUrl?: string;
       cancelUrl?: string;
     };
 
-    if (!transaction || !transaction.orderId || !transaction.amount) {
-      return res.status(400).json({ error: 'Missing transaction data or amount' });
+    // Server-Side Transaction Integrity Validation
+    const validation = validateTransactionIntegrity(rawTransaction);
+    if (!validation.valid || !validation.data) {
+      return res.status(400).json({
+        error: 'Transaction Validation Failed',
+        message: validation.error || 'Invalid transaction payload.',
+      });
     }
+
+    const transaction = validation.data as TransactionData;
 
     const isMock = paypalClient.isMockConfigured();
     const paymentSource = isMock ? 'MOCK_SIMULATOR' : 'PAYPAL_SANDBOX';
 
-    // Step 1: Execute server-side risk assessment FIRST
-    const assessment = riskEngine.assess(transaction);
+    // Step 1: Execute server-side risk assessment FIRST (with Safe Failure Policy fallback support)
+    const simulateFailure = req.headers['x-simulate-ai-failure'] === 'true';
+    const assessment = simulateFailure
+      ? riskEngine.safeFallbackAssessment(transaction, new Error('Simulated external AI service outage'))
+      : riskEngine.assess(transaction);
 
     // Step 2: Handle High Risk (BLOCK) -> Reject before contacting PayPal
     if (assessment.tier === 'BLOCK') {
@@ -146,7 +167,7 @@ paypalRouter.post('/create-order', async (req: Request, res: Response) => {
 
     const returnUrl =
       clientReturnUrl ||
-      `${origin}/?paypal_action=approved&token=${transaction.orderId}&localOrderId=${encodeURIComponent(transaction.orderId)}`;
+      `${origin}/?paypal_action=approved&localOrderId=${encodeURIComponent(transaction.orderId)}`;
     const cancelUrl =
       clientCancelUrl ||
       `${origin}/?paypal_action=cancelled&localOrderId=${encodeURIComponent(transaction.orderId)}`;
@@ -202,8 +223,15 @@ paypalRouter.post('/capture-order', async (req: Request, res: Response) => {
   try {
     const { paypalOrderId, localOrderId } = req.body as { paypalOrderId: string; localOrderId: string };
 
-    if (!paypalOrderId || !localOrderId) {
-      return res.status(400).json({ error: 'Missing paypalOrderId or localOrderId' });
+    if (
+      !paypalOrderId ||
+      typeof paypalOrderId !== 'string' ||
+      !paypalOrderId.trim() ||
+      !localOrderId ||
+      typeof localOrderId !== 'string' ||
+      !localOrderId.trim()
+    ) {
+      return res.status(400).json({ error: 'Missing or invalid paypalOrderId or localOrderId' });
     }
 
     const existingTx = dbService.getTransaction(localOrderId);

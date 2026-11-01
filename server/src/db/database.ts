@@ -93,16 +93,16 @@ try {
 }
 
 export const SYNTHETIC_BENCHMARK_ORDER_IDS = new Set([
-  'ORD-7102', 'ORD-9430', 'ORD-3199', 'ORD-8821', 
-  'ORD-4015', 'ORD-6204', 'ORD-1192', 'ORD-5541'
+  'ORD-7102', 'ORD-9430', 'ORD-3199', 'ORD-4412', 'ORD-5520',
+  'ORD-8821', 'ORD-4015', 'ORD-6204', 'ORD-1192', 'ORD-5541'
 ]);
 
 function inferPaymentSource(orderId: string, paypalOrderId?: string, dbSource?: string): 'PAYPAL_SANDBOX' | 'MOCK_SIMULATOR' | 'SYNTHETIC_BENCHMARK' | 'MOCK' {
+  if (dbSource === 'SYNTHETIC_BENCHMARK' || SYNTHETIC_BENCHMARK_ORDER_IDS.has(orderId) || orderId.startsWith('ORD-')) {
+    return 'SYNTHETIC_BENCHMARK';
+  }
   if (dbSource && dbSource !== 'MOCK') {
     return dbSource as any;
-  }
-  if (SYNTHETIC_BENCHMARK_ORDER_IDS.has(orderId) || orderId.startsWith('ORD-SYNTH-')) {
-    return 'SYNTHETIC_BENCHMARK';
   }
   if (!paypalOrderId || paypalOrderId.startsWith('PAYPAL-SANDBOX-') || paypalOrderId.startsWith('PAYPAL-ORD-')) {
     return 'MOCK_SIMULATOR';
@@ -160,7 +160,7 @@ export const dbService = {
     const row = db.prepare('SELECT * FROM transactions WHERE order_id = ?').get(orderId) as any;
     if (!row) return null;
 
-    const isSynthetic = SYNTHETIC_BENCHMARK_ORDER_IDS.has(row.order_id) || Boolean(row.order_id?.startsWith('ORD-SYNTH-'));
+    const isSynthetic = SYNTHETIC_BENCHMARK_ORDER_IDS.has(row.order_id) || Boolean(row.order_id?.startsWith('ORD-'));
     const paymentSource = inferPaymentSource(row.order_id, row.paypal_order_id, row.payment_source);
 
     return {
@@ -202,7 +202,7 @@ export const dbService = {
         telemetry = {};
       }
 
-      const isSynthetic = SYNTHETIC_BENCHMARK_ORDER_IDS.has(r.order_id) || Boolean(r.order_id?.startsWith('ORD-SYNTH-'));
+      const isSynthetic = SYNTHETIC_BENCHMARK_ORDER_IDS.has(r.order_id) || Boolean(r.order_id?.startsWith('ORD-'));
       const paymentSource = inferPaymentSource(r.order_id, r.paypal_order_id, r.payment_source);
 
       return {
@@ -231,6 +231,10 @@ export const dbService = {
   },
 
   updatePaymentStatus(orderId: string, status: string, paypalCaptureId?: string): void {
+    const existing = this.getTransaction(orderId);
+    if (existing && existing.paymentStatus === 'CAPTURED' && status !== 'CAPTURED') {
+      throw new Error(`Invalid state transition: Cannot change status of already CAPTURED order ${orderId} to ${status}`);
+    }
     const now = new Date().toISOString();
     const stmt = db.prepare(`
       UPDATE transactions 
@@ -241,6 +245,10 @@ export const dbService = {
   },
 
   cancelTransaction(orderId: string): void {
+    const existing = this.getTransaction(orderId);
+    if (existing && existing.paymentStatus === 'CAPTURED') {
+      throw new Error(`Invalid state transition: Cannot cancel an already captured transaction (${orderId})`);
+    }
     const now = new Date().toISOString();
     const stmt = db.prepare(`
       UPDATE transactions 

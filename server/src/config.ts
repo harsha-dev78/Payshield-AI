@@ -10,19 +10,33 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 dotenv.config(); // fallback
 
+function cleanEnvString(val?: string, fallback = ''): string {
+  if (!val) return fallback;
+  let cleaned = val.trim();
+  if ((cleaned.startsWith('"') && cleaned.endsWith('"')) || (cleaned.startsWith("'") && cleaned.endsWith("'"))) {
+    cleaned = cleaned.slice(1, -1).trim();
+  }
+  return cleaned || fallback;
+}
+
+function cleanUrlString(val?: string, fallback = ''): string {
+  const cleaned = cleanEnvString(val, fallback);
+  return cleaned.replace(/\/+$/, '');
+}
+
+const rawEnv = cleanEnvString(process.env.PAYPAL_ENVIRONMENT, 'sandbox').toLowerCase();
+const defaultApiBase = (rawEnv === 'live' || rawEnv === 'production')
+  ? 'https://api-m.paypal.com'
+  : 'https://api-m.sandbox.paypal.com';
+
 export const CONFIG = {
   PORT: parseInt(process.env.PORT || '5000', 10),
   NODE_ENV: process.env.NODE_ENV || 'development',
   PAYPAL: {
-    CLIENT_ID: process.env.PAYPAL_CLIENT_ID || 'sandbox_mock_client_id',
-    CLIENT_SECRET: process.env.PAYPAL_CLIENT_SECRET || 'sandbox_mock_client_secret',
-    ENVIRONMENT: (process.env.PAYPAL_ENVIRONMENT || 'sandbox').toLowerCase(),
-    API_BASE:
-      process.env.PAYPAL_API_BASE ||
-      ((process.env.PAYPAL_ENVIRONMENT || 'sandbox').toLowerCase() === 'live' ||
-      (process.env.PAYPAL_ENVIRONMENT || 'sandbox').toLowerCase() === 'production'
-        ? 'https://api-m.paypal.com'
-        : 'https://api-m.sandbox.paypal.com'),
+    CLIENT_ID: cleanEnvString(process.env.PAYPAL_CLIENT_ID, 'sandbox_mock_client_id'),
+    CLIENT_SECRET: cleanEnvString(process.env.PAYPAL_CLIENT_SECRET, 'sandbox_mock_client_secret'),
+    ENVIRONMENT: rawEnv,
+    API_BASE: cleanUrlString(process.env.PAYPAL_API_BASE, defaultApiBase),
   },
   RISK: {
     ALLOW_THRESHOLD: parseInt(process.env.RISK_THRESHOLD_ALLOW || '30', 10),

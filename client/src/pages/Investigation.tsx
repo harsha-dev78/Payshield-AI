@@ -197,17 +197,17 @@ export const Investigation: React.FC<InvestigationProps> = ({ orderId, onBack, o
             <span className="text-xs font-bold text-slate-900 uppercase tracking-wider">
               Order Summary
             </span>
-            {tx.paymentSource === 'PAYPAL_SANDBOX' ? (
+            {tx.paymentSource === 'PAYPAL_SANDBOX' && !tx.isSynthetic && !tx.orderId?.startsWith('ORD-') ? (
               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 shadow-xs" title="Genuine PayPal Sandbox Gateway">
                 Genuine PayPal Sandbox
               </span>
-            ) : tx.paymentSource === 'MOCK_SIMULATOR' ? (
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200" title="Offline Mock Simulator">
-                Mock Simulator
+            ) : (tx.paymentSource === 'SYNTHETIC_BENCHMARK' || tx.isSynthetic || tx.orderId?.startsWith('ORD-')) ? (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200" title="Pre-configured synthetic benchmark transaction">
+                Demo Benchmark Dataset
               </span>
             ) : (
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200" title="Pre-configured synthetic benchmark transaction">
-                Simulated Benchmark Dataset
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200" title="Offline Mock Simulator">
+                Mock Simulator
               </span>
             )}
           </div>
@@ -246,9 +246,21 @@ export const Investigation: React.FC<InvestigationProps> = ({ orderId, onBack, o
                 ? 'bg-slate-100 text-slate-700 border-slate-300'
                 : tx.paymentStatus === 'DECLINED'
                 ? 'bg-rose-50 text-rose-700 border-rose-200'
-                : 'bg-amber-50 text-amber-700 border-amber-200'
+                : tx.paymentStatus === 'PENDING_RISK_REVIEW'
+                ? 'bg-amber-50 text-amber-700 border-amber-200'
+                : 'bg-blue-50 text-blue-700 border-blue-200'
             }`}>
-              {tx.paymentStatus === 'CAPTURED' ? 'Paid' : tx.paymentStatus === 'BLOCKED' ? 'Blocked (No Payment Created)' : tx.paymentStatus === 'CANCELLED' ? 'Cancelled' : tx.paymentStatus === 'DECLINED' ? 'Declined' : 'Review Required'}
+              {tx.paymentStatus === 'CAPTURED'
+                ? 'Paid'
+                : tx.paymentStatus === 'BLOCKED'
+                ? 'Blocked (No Payment Created)'
+                : tx.paymentStatus === 'CANCELLED'
+                ? 'Cancelled'
+                : tx.paymentStatus === 'DECLINED'
+                ? 'Declined'
+                : tx.paymentStatus === 'PENDING_RISK_REVIEW'
+                ? 'Review Required'
+                : 'Pending Approval'}
             </span>
           </div>
         </div>

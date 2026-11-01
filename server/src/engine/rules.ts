@@ -20,8 +20,8 @@ export const DETERMINISTIC_RULES: EvaluationRule[] = [
     category: 'GEOGRAPHY',
     severity: 'HIGH',
     evaluate: (tx) => {
-      const ipCountry = (tx.telemetry.ipCountry || '').toUpperCase();
-      const shippingCountry = (tx.telemetry.shippingCountry || '').toUpperCase();
+      const ipCountry = (tx.telemetry?.ipCountry || '').toUpperCase();
+      const shippingCountry = (tx.telemetry?.shippingCountry || '').toUpperCase();
       if (!ipCountry || !shippingCountry) return null;
 
       if (ipCountry !== shippingCountry) {
@@ -41,11 +41,11 @@ export const DETERMINISTIC_RULES: EvaluationRule[] = [
     category: 'NETWORK',
     severity: 'MEDIUM',
     evaluate: (tx) => {
-      if (tx.telemetry.isProxyOrVpn) {
+      if (tx.telemetry?.isProxyOrVpn) {
         return {
           triggered: true,
           contribution: 22,
-          fact: `Connection IP ${tx.telemetry.ipAddress} resolves to a known commercial VPN, Tor node, or datacenter proxy.`,
+          fact: `Connection IP ${tx.telemetry.ipAddress || 'unknown'} resolves to a known commercial VPN, Tor node, or datacenter proxy.`,
           reason: 'Anonymizing proxy masking prevents accurate geographic attribution and obfuscates true user origin.',
         };
       }
@@ -58,7 +58,7 @@ export const DETERMINISTIC_RULES: EvaluationRule[] = [
     category: 'VELOCITY',
     severity: 'CRITICAL',
     evaluate: (tx) => {
-      const fails = tx.telemetry.failedAttemptsInLastHour || 0;
+      const fails = tx.telemetry?.failedAttemptsInLastHour || 0;
       if (fails >= 3) {
         return {
           triggered: true,
@@ -94,7 +94,7 @@ export const DETERMINISTIC_RULES: EvaluationRule[] = [
     category: 'FINANCIAL',
     severity: 'HIGH',
     evaluate: (tx) => {
-      const age = tx.telemetry.accountAgeDays ?? 0;
+      const age = tx.telemetry?.accountAgeDays ?? 0;
       if (tx.amount > 350 && age < 5) {
         return {
           triggered: true,
@@ -112,11 +112,11 @@ export const DETERMINISTIC_RULES: EvaluationRule[] = [
     category: 'GEOGRAPHY',
     severity: 'LOW',
     evaluate: (tx) => {
-      if (tx.telemetry.shippingAddressMatchesBilling === false) {
+      if (tx.telemetry?.shippingAddressMatchesBilling === false) {
         return {
           triggered: true,
           contribution: 12,
-          fact: `Billing address (${tx.telemetry.billingCountry}) differs from delivery address (${tx.telemetry.shippingCountry}).`,
+          fact: `Billing address (${tx.telemetry?.billingCountry || 'unknown'}) differs from delivery address (${tx.telemetry?.shippingCountry || 'unknown'}).`,
           reason: 'Delivery to third-party or alternate addresses increases risk of unauthorized card usage.',
         };
       }
@@ -130,8 +130,8 @@ export const DETERMINISTIC_RULES: EvaluationRule[] = [
     category: 'BEHAVIORAL',
     severity: 'INFO',
     evaluate: (tx) => {
-      const age = tx.telemetry.accountAgeDays ?? 0;
-      const fails = tx.telemetry.failedAttemptsInLastHour || 0;
+      const age = tx.telemetry?.accountAgeDays ?? 0;
+      const fails = tx.telemetry?.failedAttemptsInLastHour || 0;
       if (age >= 90 && fails === 0) {
         return {
           triggered: true,
@@ -149,10 +149,10 @@ export const DETERMINISTIC_RULES: EvaluationRule[] = [
     category: 'GEOGRAPHY',
     severity: 'INFO',
     evaluate: (tx) => {
-      const ip = (tx.telemetry.ipCountry || '').toUpperCase();
-      const bill = (tx.telemetry.billingCountry || '').toUpperCase();
-      const ship = (tx.telemetry.shippingCountry || '').toUpperCase();
-      if (ip && bill && ship && ip === bill && bill === ship && !tx.telemetry.isProxyOrVpn) {
+      const ip = (tx.telemetry?.ipCountry || '').toUpperCase();
+      const bill = (tx.telemetry?.billingCountry || '').toUpperCase();
+      const ship = (tx.telemetry?.shippingCountry || '').toUpperCase();
+      if (ip && bill && ship && ip === bill && bill === ship && !tx.telemetry?.isProxyOrVpn) {
         return {
           triggered: true,
           contribution: -15,

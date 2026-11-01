@@ -158,8 +158,7 @@ export function seedSyntheticDataIfNeeded(): void {
     const assessment = riskEngine.assess(tx);
     const paymentStatus = assessment.tier === 'BLOCK' ? 'BLOCKED' : (assessment.tier === 'ALLOW' ? 'CAPTURED' : 'PENDING');
     const mockPaypalId = assessment.tier !== 'BLOCK' ? `PAYPAL-${tx.orderId}` : undefined;
-
-    dbService.saveTransaction(tx, paymentStatus, mockPaypalId);
+    dbService.saveTransaction(tx, paymentStatus, mockPaypalId, 'SYNTHETIC_BENCHMARK');
     dbService.saveRiskAssessment(assessment);
 
     // Initial audit entry

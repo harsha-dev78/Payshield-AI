@@ -9,14 +9,54 @@ import { Settings } from './pages/Settings.js';
 import type { TransactionData } from './types/index.js';
 import { api } from './services/api.js';
 
+const TAB_PATHS: Record<string, string> = {
+  dashboard: '/',
+  investigation: '/investigation',
+  checkout: '/sandbox-store',
+  audit: '/audit',
+  settings: '/settings',
+};
+
+function getTabFromUrl(): string {
+  if (typeof window === 'undefined') return 'dashboard';
+  const pathname = window.location.pathname.toLowerCase();
+  const search = new URLSearchParams(window.location.search);
+  if (search.get('paypal_action')) return 'checkout';
+  if (pathname.includes('sandbox-store') || pathname.includes('checkout') || pathname.includes('store')) {
+    return 'checkout';
+  }
+  if (pathname.includes('investigation')) return 'investigation';
+  if (pathname.includes('audit') || pathname.includes('activity')) return 'audit';
+  if (pathname.includes('settings')) return 'settings';
+  return 'dashboard';
+}
+
 export function App() {
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTabState] = useState<string>(getTabFromUrl);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [transactions, setTransactions] = useState<TransactionData[]>([]);
   const [systemStatus, setSystemStatus] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [searchFilter, setSearchFilter] = useState('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const setActiveTab = useCallback((tab: string, updateUrl = true) => {
+    setActiveTabState(tab);
+    if (updateUrl && typeof window !== 'undefined') {
+      const targetPath = TAB_PATHS[tab] || '/';
+      if (window.location.pathname !== targetPath && !window.location.search.includes('paypal_action')) {
+        window.history.pushState({ tab }, '', targetPath);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setActiveTabState(getTabFromUrl());
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   const loadInitialData = useCallback(async () => {
     setLoading(true);
@@ -45,9 +85,9 @@ export function App() {
     loadInitialData();
     const params = new URLSearchParams(window.location.search);
     if (params.get('paypal_action')) {
-      setActiveTab('checkout');
+      setActiveTab('checkout', false);
     }
-  }, [loadInitialData]);
+  }, [loadInitialData, setActiveTab]);
 
   const handleSelectTransaction = (orderId: string) => {
     setSelectedOrderId(orderId);

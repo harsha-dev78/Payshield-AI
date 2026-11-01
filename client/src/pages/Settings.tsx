@@ -184,8 +184,14 @@ export const Settings: React.FC = () => {
             <div className="flex justify-between py-2 border-b border-slate-100">
               <span className="text-slate-400 font-sans">Connection Status:</span>
               <span className="text-emerald-700 flex items-center gap-1.5 font-bold font-sans">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span>{paypalStatus?.clientIdConfigured ? 'Live Sandbox Credentials Connected' : 'Demo Sandbox Active'}</span>
+                <span className={`w-2 h-2 rounded-full ${paypalStatus?.authenticated ? 'bg-emerald-500' : paypalStatus?.clientIdConfigured ? 'bg-amber-500' : 'bg-slate-400'} animate-pulse`} />
+                <span>
+                  {paypalStatus?.authenticated
+                    ? `Live Sandbox Authenticated (${paypalStatus?.authLatencyMs || 0}ms)`
+                    : paypalStatus?.clientIdConfigured
+                    ? 'Credentials Configured (Authenticating...)'
+                    : 'Demo Sandbox Active'}
+                </span>
               </span>
             </div>
           </div>

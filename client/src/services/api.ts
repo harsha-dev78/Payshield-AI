@@ -25,8 +25,8 @@ export const api = {
     return res.json();
   },
 
-  async getTransactions(): Promise<TransactionData[]> {
-    const res = await fetch(`${API_BASE}/orders`);
+  async getTransactions(limit = 100): Promise<TransactionData[]> {
+    const res = await fetch(`${API_BASE}/orders?limit=${limit}`);
     if (!res.ok) throw new Error('Failed to fetch transactions');
     const data = await res.json();
     return data.transactions;

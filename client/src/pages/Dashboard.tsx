@@ -296,7 +296,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         ? 'Cancelled'
                         : tx.paymentStatus === 'DECLINED'
                         ? 'Declined'
-                        : 'Review Required';
+                        : tx.paymentStatus === 'PENDING_RISK_REVIEW'
+                        ? 'Review Required'
+                        : 'Pending';
 
                     const statusBadgeStyle =
                       statusLabel === 'Completed'
@@ -307,7 +309,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         ? 'bg-slate-100 text-slate-600'
                         : statusLabel === 'Declined'
                         ? 'bg-[#fee2e2] text-[#dc2626]'
-                        : 'bg-[#fef3c7] text-[#d97706]';
+                        : statusLabel === 'Review Required'
+                        ? 'bg-[#fef3c7] text-[#d97706]'
+                        : 'bg-blue-50 text-blue-700';
 
                     return (
                       <tr 
@@ -319,15 +323,19 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         <td className="py-3.5 px-5 font-semibold text-slate-800">
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span>{tx.orderId}</span>
-                            {tx.paymentSource === 'PAYPAL_SANDBOX' ? (
+                            {tx.paymentSource === 'PAYPAL_SANDBOX' && !tx.isSynthetic && !tx.orderId?.startsWith('ORD-') ? (
                               <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 font-bold" title="Genuine PayPal Sandbox">
                                 Sandbox
                               </span>
-                            ) : tx.paymentSource === 'MOCK_SIMULATOR' ? (
-                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200 font-semibold" title="Mock Simulator">
+                            ) : (tx.paymentSource === 'SYNTHETIC_BENCHMARK' || tx.isSynthetic || tx.orderId?.startsWith('ORD-')) ? (
+                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 font-semibold" title="Synthetic Benchmark Dataset">
+                                Demo
+                              </span>
+                            ) : (
+                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200 font-semibold" title="Offline Mock Simulator">
                                 Mock
                               </span>
-                            ) : null}
+                            )}
                           </div>
                         </td>
 

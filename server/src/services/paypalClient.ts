@@ -67,8 +67,8 @@ export class PayPalClient {
     return mockPlaceholders.has(id) || mockSecretPlaceholders.has(secret);
   }
 
-  public async getAccessToken(): Promise<string> {
-    if (this.cachedToken && Date.now() < this.tokenExpiresAt) {
+  public async getAccessToken(forceRefresh = false): Promise<string> {
+    if (!forceRefresh && this.cachedToken && Date.now() < this.tokenExpiresAt) {
       return this.cachedToken;
     }
 
@@ -109,6 +109,41 @@ export class PayPalClient {
     return this.cachedToken;
   }
 
+  public async verifyAuthentication(): Promise<{
+    authenticated: boolean;
+    mode: 'PAYPAL_SANDBOX' | 'MOCK_SIMULATOR';
+    apiBase: string;
+    authLatencyMs?: number;
+    error?: string;
+  }> {
+    if (this.isMockConfigured()) {
+      return {
+        authenticated: true,
+        mode: 'MOCK_SIMULATOR',
+        apiBase: this.apiBase,
+      };
+    }
+
+    const start = Date.now();
+    try {
+      const token = await this.getAccessToken();
+      return {
+        authenticated: Boolean(token && token.length > 0),
+        mode: 'PAYPAL_SANDBOX',
+        apiBase: this.apiBase,
+        authLatencyMs: Date.now() - start,
+      };
+    } catch (err: any) {
+      return {
+        authenticated: false,
+        mode: 'PAYPAL_SANDBOX',
+        apiBase: this.apiBase,
+        error: err.issue || err.message || 'Authentication failed',
+        authLatencyMs: Date.now() - start,
+      };
+    }
+  }
+
   public async createOrder(
     referenceId: string,
     amount: number,
@@ -137,7 +172,7 @@ export class PayPalClient {
       };
     }
 
-    const token = await this.getAccessToken();
+    let token = await this.getAccessToken();
     const payload = {
       intent: 'CAPTURE',
       purchase_units: [
@@ -159,7 +194,7 @@ export class PayPalClient {
       },
     };
 
-    const response = await fetch(`${this.apiBase}/v2/checkout/orders`, {
+    let response = await fetch(`${this.apiBase}/v2/checkout/orders`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -167,6 +202,18 @@ export class PayPalClient {
       },
       body: JSON.stringify(payload),
     });
+
+    if (response.status === 401 && !this.isMockConfigured()) {
+      token = await this.getAccessToken(true);
+      response = await fetch(`${this.apiBase}/v2/checkout/orders`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+    }
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -277,14 +324,27 @@ export class PayPalClient {
       };
     }
 
-    const token = await this.getAccessToken();
-    const response = await fetch(`${this.apiBase}/v2/checkout/orders/${paypalOrderId}/capture`, {
+    let token = await this.getAccessToken();
+    let response = await fetch(`${this.apiBase}/v2/checkout/orders/${paypalOrderId}/capture`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
+      body: '{}',
     });
+
+    if (response.status === 401 && !this.isMockConfigured()) {
+      token = await this.getAccessToken(true);
+      response = await fetch(`${this.apiBase}/v2/checkout/orders/${paypalOrderId}/capture`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: '{}',
+      });
+    }
 
     if (!response.ok) {
       const errorText = await response.text();

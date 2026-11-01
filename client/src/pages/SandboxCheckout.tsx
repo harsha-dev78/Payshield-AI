@@ -99,6 +99,21 @@ export const SandboxCheckout: React.FC<SandboxCheckoutProps> = ({ onOrderComplet
     if (action === 'approved' && (token || localId)) {
       const effectiveLocalId = localId || `PS-${new Date().getFullYear()}-RECOVERED`;
       const effectivePayPalId = token || effectiveLocalId;
+
+      if (window.opener && !window.opener.closed) {
+        try {
+          window.opener.postMessage({
+            type: 'PAYPAL_APPROVED',
+            token: effectivePayPalId,
+            localOrderId: effectiveLocalId,
+          }, '*');
+          window.close();
+          return;
+        } catch {
+          // Fallback to local execution if popup communication fails
+        }
+      }
+
       setCurrentOrderId(effectiveLocalId);
       setPaypalOrderId(effectivePayPalId);
 
@@ -108,6 +123,17 @@ export const SandboxCheckout: React.FC<SandboxCheckoutProps> = ({ onOrderComplet
       // Execute capture
       executeCapture(effectiveLocalId, effectivePayPalId);
     } else if (action === 'cancelled' && localId) {
+      if (window.opener && !window.opener.closed) {
+        try {
+          window.opener.postMessage({
+            type: 'PAYPAL_CANCELLED',
+            localOrderId: localId,
+          }, '*');
+          window.close();
+          return;
+        } catch {}
+      }
+
       setCurrentOrderId(localId);
       setStep('CANCELLED');
       window.history.replaceState({}, document.title, window.location.pathname);
@@ -227,7 +253,9 @@ export const SandboxCheckout: React.FC<SandboxCheckoutProps> = ({ onOrderComplet
     setCurrentOrderId(tx.orderId);
 
     try {
-      const res = await api.createPayPalOrder(tx);
+      const returnUrl = `${window.location.origin}/sandbox-store?paypal_action=approved&localOrderId=${encodeURIComponent(tx.orderId)}`;
+      const cancelUrl = `${window.location.origin}/sandbox-store?paypal_action=cancelled&localOrderId=${encodeURIComponent(tx.orderId)}`;
+      const res = await api.createPayPalOrder(tx, returnUrl, cancelUrl);
       setAssessmentResult(res.assessment);
       setPaypalOrderId(res.paypalOrderId);
       setApproveUrl(res.approveUrl || null);
@@ -244,7 +272,8 @@ export const SandboxCheckout: React.FC<SandboxCheckoutProps> = ({ onOrderComplet
           setStep('GATE_BLOCKED');
         }
       } else {
-        setErrorMsg(err.message || 'PayPal order creation failed.');
+        const detail = err.issue ? ` (${err.issue})` : '';
+        setErrorMsg(`${err.message || 'PayPal order creation failed.'}${detail}`);
         setStep('IDLE');
       }
     } finally {
@@ -253,10 +282,20 @@ export const SandboxCheckout: React.FC<SandboxCheckoutProps> = ({ onOrderComplet
   };
 
   const handleOpenPayPalApproval = () => {
-    if (!approveUrl) return;
+    if (!approveUrl) {
+      setErrorMsg('No approval URL returned by PayPal Sandbox. Please try again.');
+      return;
+    }
     setHasOpenedApprovalWindow(true);
-    // Open PayPal Sandbox in a focused window
-    window.open(approveUrl, 'PayPalSandboxApproval', 'width=620,height=720,menubar=no,toolbar=no');
+    // Open PayPal Sandbox in a focused window with fallback
+    const popup = window.open(
+      approveUrl,
+      'PayPalSandboxApproval',
+      'width=620,height=720,menubar=no,toolbar=no,status=no,resizable=yes,scrollbars=yes'
+    );
+    if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+      window.open(approveUrl, '_blank');
+    }
   };
 
   const handleCapture = async () => {
@@ -347,7 +386,7 @@ export const SandboxCheckout: React.FC<SandboxCheckoutProps> = ({ onOrderComplet
             }`}
           >
             <div className="font-bold text-xs flex items-center justify-between">
-              <span>Normal Customer</span>
+              <span>Normal Customer (Low Risk)</span>
               <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-100 text-emerald-800 font-semibold">Safe</span>
             </div>
             <div className="text-[11px] text-slate-500 mt-1 leading-relaxed">
@@ -364,7 +403,7 @@ export const SandboxCheckout: React.FC<SandboxCheckoutProps> = ({ onOrderComplet
             }`}
           >
             <div className="font-bold text-xs flex items-center justify-between">
-              <span>Uncertain Buyer</span>
+              <span>Uncertain Buyer (Medium Risk)</span>
               <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-100 text-amber-800 font-semibold">Review</span>
             </div>
             <div className="text-[11px] text-slate-500 mt-1 leading-relaxed">
@@ -381,7 +420,7 @@ export const SandboxCheckout: React.FC<SandboxCheckoutProps> = ({ onOrderComplet
             }`}
           >
             <div className="font-bold text-xs flex items-center justify-between">
-              <span>Suspicious Actor</span>
+              <span>Suspicious Actor (High Risk)</span>
               <span className="px-2 py-0.5 rounded-full text-[10px] bg-rose-100 text-rose-800 font-semibold">High Risk</span>
             </div>
             <div className="text-[11px] text-slate-500 mt-1 leading-relaxed">
@@ -481,18 +520,19 @@ export const SandboxCheckout: React.FC<SandboxCheckoutProps> = ({ onOrderComplet
               <button
                 onClick={handleStartCheckout}
                 disabled={isProcessing}
+                data-testid="proceed-security-gating"
                 className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center justify-center gap-2 transition-colors shadow-xs shadow-blue-500/20 cursor-pointer"
               >
                 <Lock className="w-3.5 h-3.5" />
-                <span>Pay with PayPal (Sandbox)</span>
+                <span>Proceed to Security Gating & Checkout</span>
               </button>
             )}
 
             {step === 'EVALUATING' && (
               <div className="p-4 rounded-xl bg-blue-50/70 border border-blue-200 text-center space-y-2">
                 <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
-                <div className="text-xs text-blue-950 font-bold">Pre-Capture Risk Analysis</div>
-                <div className="text-[11px] text-blue-700">Evaluating telemetry before PayPal authorization...</div>
+                <div className="text-xs text-blue-950 font-bold">Pre-Capture Security Gating</div>
+                <div className="text-[11px] text-blue-700">Evaluating telemetry and risk signals before PayPal authorization...</div>
               </div>
             )}
 
@@ -515,79 +555,87 @@ export const SandboxCheckout: React.FC<SandboxCheckoutProps> = ({ onOrderComplet
                     Low risk score ({assessmentResult?.overallScore || 15}/100). Safe to authorize.
                   </div>
                   {paypalOrderId && (
-                    <div className="text-[10px] font-mono text-emerald-800 pt-1 border-t border-emerald-200/60 mt-1">
-                      PayPal Order: {paypalOrderId}
+                    <div className="text-[10px] font-mono text-emerald-800 pt-1 border-t border-emerald-200/60 mt-1 flex justify-between items-center">
+                      <span>PayPal Order:</span>
+                      <span className="font-bold">{paypalOrderId}</span>
                     </div>
                   )}
                 </div>
 
-                {gatewayMode === 'PAYPAL_SANDBOX' && approveUrl ? (
-                  <div className="space-y-2.5">
-                    {/* Sandbox Approval Callout */}
-                    <div className="p-2.5 rounded-xl bg-blue-50/60 border border-blue-200 text-[11px] text-blue-800 space-y-1 leading-relaxed">
-                      <div className="font-bold flex items-center gap-1 text-blue-900">
-                        <Info className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                        <span>Genuine PayPal Sandbox Approval</span>
-                      </div>
-                      <p className="text-slate-600 text-[10px]">
-                        1. Click below to open PayPal Sandbox. Log in with your Sandbox Personal Buyer account.
-                      </p>
-                      <p className="text-slate-600 text-[10px]">
-                        2. Click &quot;Complete Purchase&quot; on PayPal, then click &quot;Capture Payment&quot; below.
-                      </p>
+                <div className="space-y-2.5">
+                  {/* Sandbox Approval Guidance Callout */}
+                  <div className="p-2.5 rounded-xl bg-blue-50/60 border border-blue-200 text-[11px] text-blue-800 space-y-1 leading-relaxed">
+                    <div className="font-bold flex items-center gap-1 text-blue-900">
+                      <Info className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                      <span>{gatewayMode === 'PAYPAL_SANDBOX' ? 'Genuine PayPal Sandbox Approval' : 'Sandbox Checkout Simulator'}</span>
                     </div>
+                    <p className="text-slate-600 text-[10px]">
+                      1. Click &quot;Open PayPal Sandbox Checkout Window&quot; below to log into PayPal Sandbox with your personal test account and approve the payment.
+                    </p>
+                    <p className="text-slate-600 text-[10px]">
+                      2. After approving, click &quot;Verify &amp; Capture Payment&quot; below to settle server-side.
+                    </p>
+                  </div>
 
-                    {/* Step A: Open Approval Window */}
-                    <button
-                      onClick={handleOpenPayPalApproval}
-                      className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors shadow-xs shadow-blue-500/20 cursor-pointer"
-                    >
-                      <ExternalLink className="w-3.5 h-3.5" />
-                      <span>{hasOpenedApprovalWindow ? 'Reopen PayPal Approval Page' : '1. Open PayPal Sandbox Approval'}</span>
-                    </button>
+                  {/* Primary Checkout Button: Open PayPal Sandbox Checkout Window */}
+                  <button
+                    onClick={handleOpenPayPalApproval}
+                    data-testid="open-paypal-checkout"
+                    className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors shadow-xs shadow-blue-500/20 cursor-pointer"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span>Open PayPal Sandbox Checkout Window</span>
+                    {hasOpenedApprovalWindow && (
+                      <span className="text-[10px] font-normal opacity-80">(Reopen)</span>
+                    )}
+                  </button>
 
-                    {/* Step B: Complete Capture */}
+                  {/* Fallback Direct Link in case browser blocked popup */}
+                  {approveUrl && (
+                    <div className="text-center text-[10px] text-slate-500">
+                      Popup blocked?{' '}
+                      <a
+                        href={approveUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 underline font-semibold hover:text-blue-800"
+                      >
+                        Click here to open PayPal Sandbox approval directly
+                      </a>
+                    </div>
+                  )}
+
+                  {/* Step 2: Complete Server-Side Capture */}
+                  <button
+                    onClick={handleCapture}
+                    disabled={isProcessing}
+                    data-testid="verify-capture-payment"
+                    className="w-full py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors shadow-xs cursor-pointer"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>{isProcessing ? 'Capturing...' : 'Verify & Capture Payment'}</span>
+                  </button>
+
+                  {/* Offline test shortcut if mock mode */}
+                  {gatewayMode === 'MOCK_SIMULATOR' && (
                     <button
                       onClick={handleCapture}
                       disabled={isProcessing}
-                      className="w-full py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors shadow-xs cursor-pointer"
+                      className="w-full py-1.5 px-3 rounded-lg text-indigo-600 hover:bg-indigo-50 border border-indigo-200 text-[11px] font-medium transition-colors cursor-pointer"
                     >
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>2. Verify & Capture Payment</span>
+                      Offline Test: Simulate Immediate Buyer Approval &amp; Capture
                     </button>
+                  )}
 
-                    {/* Cancel Action */}
-                    <button
-                      onClick={handleCancelPayment}
-                      disabled={isProcessing}
-                      className="w-full py-1.5 px-3 rounded-lg text-slate-500 hover:text-slate-700 text-[11px] font-medium transition-colors cursor-pointer"
-                    >
-                      Cancel Transaction
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <div className="text-[11px] text-indigo-700 font-medium bg-indigo-50 p-2 rounded-lg border border-indigo-200">
-                      Mock Simulator Mode: Test zero-dependency offline checkout.
-                    </div>
-                    <button
-                      onClick={handleCapture}
-                      disabled={isProcessing}
-                      className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors shadow-xs cursor-pointer"
-                    >
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>{isProcessing ? 'Capturing...' : 'Simulate Buyer Approval & Capture'}</span>
-                    </button>
-
-                    <button
-                      onClick={handleCancelPayment}
-                      disabled={isProcessing}
-                      className="w-full py-1.5 px-3 rounded-lg text-slate-500 hover:text-slate-700 text-[11px] font-medium transition-colors cursor-pointer"
-                    >
-                      Simulate Buyer Cancellation
-                    </button>
-                  </div>
-                )}
+                  {/* Cancel Action */}
+                  <button
+                    onClick={handleCancelPayment}
+                    disabled={isProcessing}
+                    className="w-full py-1.5 px-3 rounded-lg text-slate-500 hover:text-slate-700 text-[11px] font-medium transition-colors cursor-pointer"
+                  >
+                    Cancel Transaction
+                  </button>
+                </div>
               </div>
             )}
 

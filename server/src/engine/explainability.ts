@@ -21,26 +21,27 @@ export class ExplainableRiskEngine {
   }
 
   public assess(tx: TransactionData): RiskAssessment {
-    const signals: RiskSignal[] = [];
-    let rawScore = 15; // Baseline merchant baseline risk for e-commerce
+    try {
+      const signals: RiskSignal[] = [];
+      let rawScore = 15; // Baseline merchant baseline risk for e-commerce
 
-    // Evaluate each deterministic rule
-    for (const rule of DETERMINISTIC_RULES) {
-      const result = rule.evaluate(tx);
-      if (result && result.triggered) {
-        signals.push({
-          id: rule.id,
-          name: rule.name,
-          category: rule.category,
-          severity: rule.severity,
-          scoreContribution: result.contribution,
-          observedFact: result.fact,
-          inferenceReason: result.reason,
-          isModelPrediction: false,
-        });
-        rawScore += result.contribution;
+      // Evaluate each deterministic rule
+      for (const rule of DETERMINISTIC_RULES) {
+        const result = rule.evaluate(tx);
+        if (result && result.triggered) {
+          signals.push({
+            id: rule.id,
+            name: rule.name,
+            category: rule.category,
+            severity: rule.severity,
+            scoreContribution: result.contribution,
+            observedFact: result.fact,
+            inferenceReason: result.reason,
+            isModelPrediction: false,
+          });
+          rawScore += result.contribution;
+        }
       }
-    }
 
     // Bound score between 0 and 100
     const overallScore = Math.max(0, Math.min(100, Math.round(rawScore)));
@@ -169,6 +170,57 @@ export class ExplainableRiskEngine {
         merchantGuidance,
       },
       policyVersion: this.policyVersion,
+      assessedAt: new Date().toISOString(),
+    };
+    } catch (error: any) {
+      return this.safeFallbackAssessment(tx, error);
+    }
+  }
+
+  public safeFallbackAssessment(tx: TransactionData, error?: any): RiskAssessment {
+    console.error(`[RiskEngine] Safe-failure fallback engaged for order ${tx?.orderId || 'UNKNOWN'}:`, error?.message || error || 'Service failure');
+
+    // SAFE FAILURE POLICY:
+    // When assessment service fails, NEVER automatically approve (ALLOW).
+    // Enforce REVIEW with threshold score 50 and 0.0 confidence.
+    return {
+      transactionId: tx?.orderId || 'UNKNOWN',
+      overallScore: 50,
+      tier: 'REVIEW',
+      confidence: 0.0,
+      signals: [
+        {
+          id: 'AI_SERVICE_UNAVAILABLE',
+          name: 'AI Assessment Safe Fallback Engaged',
+          category: 'BEHAVIORAL',
+          severity: 'HIGH',
+          scoreContribution: 35,
+          observedFact: 'Automated AI/telemetry risk assessment service was temporarily unavailable or encountered an unexpected evaluation failure.',
+          inferenceReason: 'Security Safe-Failure Policy enforced: Automated capture is held for manual merchant review to prevent unauthorized payments during service degradation.',
+          isModelPrediction: false,
+        },
+      ],
+      factors: [
+        {
+          category: 'BEHAVIORAL',
+          weightedImpact: 35,
+          description: 'Elevated risk detected due to assessment service safe-failure policy (+35 pts)',
+        },
+      ],
+      missingInformation: ['Full telemetry risk evaluation incomplete due to service error'],
+      counterfactuals: [
+        {
+          condition: 'Re-run evaluation when assessment service is healthy',
+          potentialScoreImpact: -20,
+          rationale: 'Allows full deterministic and ML telemetry inspection.',
+        },
+      ],
+      recommendation: {
+        action: 'MANUAL_REVIEW',
+        summary: 'Assessment service fallback active (Score: 50/100). Automated capture held.',
+        merchantGuidance: 'The automated risk assessment service encountered an unexpected error. Safe failure policy engaged: hold order for manual verification before fulfillment.',
+      },
+      policyVersion: `${this.policyVersion}-safe-fallback`,
       assessedAt: new Date().toISOString(),
     };
   }

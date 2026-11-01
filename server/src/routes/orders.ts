@@ -5,6 +5,8 @@ import { riskClassifier } from '../engine/classifier.js';
 import { TransactionData } from '../types/index.js';
 
 
+import { validateTransactionIntegrity } from '../specs/transactionSchema.js';
+
 export const ordersRouter = Router();
 
 // GET /api/orders - List transactions
@@ -27,7 +29,23 @@ ordersRouter.get('/:id', (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Transaction not found' });
     }
     const assessment = dbService.getRiskAssessment(req.params.id);
-    const mlPrediction = assessment ? riskClassifier.predict(tx, assessment) : null;
+    let mlPrediction = null;
+    if (assessment) {
+      try {
+        mlPrediction = riskClassifier.predict(tx, assessment);
+      } catch (err: any) {
+        console.error(`[Classifier] ML prediction error for ${req.params.id}:`, err);
+        mlPrediction = {
+          modelType: 'Lightweight Logistic Regression Ensemble (Safe Fallback)',
+          modelVersion: 'v1.0.0-fallback',
+          fraudProbability: assessment.overallScore / 100,
+          predictedTier: assessment.tier,
+          modelConfidence: assessment.confidence,
+          topFeatureWeights: [],
+          groundedExplanation: 'Machine learning prediction service was temporarily degraded. Deterministic rule baseline was safely maintained.',
+        };
+      }
+    }
     res.json({ transaction: tx, assessment, mlPrediction });
   } catch (error: any) {
     res.status(500).json({ error: 'Failed to retrieve transaction details', details: error.message });
@@ -38,13 +56,22 @@ ordersRouter.get('/:id', (req: Request, res: Response) => {
 // POST /api/orders/evaluate - Run risk evaluation on order payload
 ordersRouter.post('/evaluate', (req: Request, res: Response) => {
   try {
-    const tx = req.body as TransactionData;
-    if (!tx || !tx.orderId || !tx.amount || !tx.telemetry) {
-      return res.status(400).json({ error: 'Malformed transaction payload. Missing orderId, amount, or telemetry.' });
+    const validation = validateTransactionIntegrity(req.body);
+    if (!validation.valid || !validation.data) {
+      return res.status(400).json({
+        error: 'Malformed transaction payload',
+        message: validation.error || 'Missing or invalid orderId, amount, items, or telemetry.',
+      });
     }
 
-    const assessment = riskEngine.assess(tx);
-    const initialStatus = assessment.tier === 'BLOCK' ? 'BLOCKED' : 'PENDING';
+    const tx = validation.data as TransactionData;
+
+    const simulateFailure = req.headers['x-simulate-ai-failure'] === 'true';
+    const assessment = simulateFailure
+      ? riskEngine.safeFallbackAssessment(tx, new Error('Simulated external AI service outage'))
+      : riskEngine.assess(tx);
+
+    const initialStatus = assessment.tier === 'BLOCK' ? 'BLOCKED' : (assessment.tier === 'REVIEW' ? 'PENDING_RISK_REVIEW' : 'PENDING');
 
     dbService.saveTransaction(tx, initialStatus);
     dbService.saveRiskAssessment(assessment);
