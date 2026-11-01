@@ -67,6 +67,26 @@ if (clientDistPath) {
   });
 }
 
+// API 404 fallback (ensure JSON is always returned for unmatched /api routes)
+app.use('/api', (req, res) => {
+  res.status(404).json({
+    error: 'API Route Not Found',
+    message: `Cannot ${req.method} ${req.originalUrl}`,
+    path: req.originalUrl,
+  });
+});
+
+// Global JSON Error Handler
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const status = err.statusCode || err.status || 500;
+  console.error(`[Unhandled Server Error] ${req.method} ${req.originalUrl}:`, err);
+  res.status(status).json({
+    error: err.name || 'Internal Server Error',
+    message: err.message || 'An unexpected error occurred.',
+    issue: err.issue,
+  });
+});
+
 // Seed sample data if empty
 seedSyntheticDataIfNeeded();
 

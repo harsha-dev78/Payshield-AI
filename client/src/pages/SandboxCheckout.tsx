@@ -377,6 +377,25 @@ export const SandboxCheckout: React.FC<SandboxCheckoutProps> = ({ onOrderComplet
         )}
       </div>
 
+      {gatewayMode === 'UNCONFIGURED' && (
+        <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200 text-xs text-amber-900 shadow-xs space-y-1.5">
+          <div className="font-bold flex items-center gap-1.5 text-amber-950">
+            <Info className="w-4 h-4 text-amber-600 shrink-0" />
+            <span>Render Action Required: Configure PayPal Sandbox Credentials</span>
+          </div>
+          <p className="text-amber-800 leading-relaxed text-[11px]">
+            The backend running on Render has not received your PayPal Sandbox credentials yet.
+          </p>
+          <div className="text-[11px] text-amber-800 font-mono space-y-0.5 pl-2 border-l-2 border-amber-300 mt-1">
+            <div>1. Open Render Dashboard &rarr; <strong>payshield-ai</strong> service</div>
+            <div>2. Click the <strong>Environment</strong> tab</div>
+            <div>3. Add: <code className="font-bold">PAYPAL_CLIENT_ID</code> = &lt;your sandbox client id&gt;</div>
+            <div>4. Add: <code className="font-bold">PAYPAL_CLIENT_SECRET</code> = &lt;your sandbox secret&gt;</div>
+            <div>5. Click <strong>Save Changes</strong> (wait until the deployment is Live)</div>
+          </div>
+        </div>
+      )}
+
       {errorMsg && (
         <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-800 shadow-xs space-y-2">
           <div><strong>Error: </strong> {errorMsg}</div>
