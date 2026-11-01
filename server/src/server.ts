@@ -36,9 +36,9 @@ app.use('/api/orders', ordersRouter);
 app.use('/api/paypal', paypalRouter);
 app.use('/api/audit', auditRouter);
 
-// System Health
-app.get('/api/health', (req, res) => {
-  res.json({
+// System Health & Render Health Check (respond at /health, /api/health)
+app.get(['/health', '/api/health'], (req, res) => {
+  res.status(200).json({
     status: 'healthy',
     name: 'PayShield AI Engine',
     version: '1.0.0',
@@ -49,6 +49,11 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Fast HEAD response for edge balancers and health checkers
+app.head(['/', '/health', '/api/health'], (req, res) => {
+  res.status(200).end();
+});
+
 // Serve frontend static assets in production or when client/dist exists
 const clientDistCandidates = [
   path.resolve(__dirname, '../../client/dist'),
@@ -57,13 +62,27 @@ const clientDistCandidates = [
 ];
 const clientDistPath = clientDistCandidates.find((p) => fs.existsSync(p));
 
-if (clientDistPath) {
+if (clientDistPath && fs.existsSync(path.join(clientDistPath, 'index.html'))) {
   app.use(express.static(clientDistPath));
   app.get('*', (req, res, next) => {
-    if (req.path.startsWith('/api')) {
+    if (req.path.startsWith('/api') || req.path === '/health') {
       return next();
     }
-    res.sendFile(path.join(clientDistPath, 'index.html'));
+    res.sendFile(path.join(clientDistPath, 'index.html'), (err) => {
+      if (err) {
+        next(err);
+      }
+    });
+  });
+} else {
+  // If static assets aren't built, serve a fallback API welcome at /
+  app.get('/', (req, res) => {
+    res.status(200).json({
+      name: 'PayShield AI Engine',
+      status: 'healthy',
+      apiBase: '/api',
+      message: 'PayShield AI Backend API is active.',
+    });
   });
 }
 
@@ -78,7 +97,10 @@ app.use('/api', (req, res) => {
 
 // Global JSON Error Handler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  const status = err.statusCode || err.status || 500;
+  if (res.headersSent) {
+    return next(err);
+  }
+  const status = typeof err.statusCode === 'number' ? err.statusCode : (typeof err.status === 'number' ? err.status : 500);
   console.error(`[Unhandled Server Error] ${req.method} ${req.originalUrl}:`, err);
   res.status(status).json({
     error: err.name || 'Internal Server Error',
