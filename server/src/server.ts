@@ -8,6 +8,7 @@ import { ordersRouter } from './routes/orders.js';
 import { paypalRouter } from './routes/paypal.js';
 import { auditRouter } from './routes/audit.js';
 import { seedSyntheticDataIfNeeded } from './db/seeds.js';
+import { paypalClient } from './services/paypalClient.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -75,14 +76,34 @@ const HOST = '0.0.0.0';
 
 if (CONFIG.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'test') {
   app.listen(PORT, HOST, () => {
+    const rawId = CONFIG.PAYPAL.CLIENT_ID || '';
+    const maskedId = rawId.length > 8
+      ? `${rawId.substring(0, 4)}...${rawId.substring(rawId.length - 4)}`
+      : (rawId ? '***' : 'NOT CONFIGURED');
+    const isSecretSet = Boolean(CONFIG.PAYPAL.CLIENT_SECRET && CONFIG.PAYPAL.CLIENT_SECRET.length > 5);
+
     console.log(`=======================================================`);
     console.log(`🛡️  PayShield AI Server running on port ${PORT}`);
     console.log(`📡  API Base: http://${HOST}:${PORT}/api`);
     console.log(`⚖️  Risk Policy: ${CONFIG.RISK.POLICY_VERSION}`);
+    console.log(`💳  PayPal Environment: ${CONFIG.PAYPAL.ENVIRONMENT}`);
+    console.log(`💳  PayPal API Base: ${CONFIG.PAYPAL.API_BASE}`);
+    console.log(`💳  PayPal Client ID: ${maskedId}`);
+    console.log(`💳  PayPal Secret Set: ${isSecretSet ? 'YES' : 'NO'}`);
     if (clientDistPath) {
       console.log(`📦  Serving Static UI from: ${clientDistPath}`);
     }
     console.log(`=======================================================`);
+
+    paypalClient.verifyAuthentication().then((auth) => {
+      if (auth.authenticated) {
+        console.log(`✅  PayPal Sandbox Authentication: VERIFIED (${auth.authLatencyMs}ms)`);
+      } else {
+        console.warn(`⚠️  PayPal Sandbox Authentication: FAILED - ${auth.error || 'Check Render environment variables'}`);
+      }
+    }).catch((err) => {
+      console.warn(`⚠️  PayPal Sandbox Authentication Check Error:`, err.message);
+    });
   });
 }
 

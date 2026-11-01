@@ -15,7 +15,7 @@ const handlePayPalHealthCheck = async (req: Request, res: Response) => {
 
   res.json({
     status: authCheck.authenticated ? 'healthy' : 'degraded',
-    mode: isMock ? 'MOCK_SIMULATOR' : 'PAYPAL_SANDBOX',
+    mode: isMock ? 'UNCONFIGURED' : 'PAYPAL_SANDBOX',
     apiBase: CONFIG.PAYPAL.API_BASE,
     authenticated: authCheck.authenticated,
     authLatencyMs: authCheck.authLatencyMs,
@@ -144,7 +144,16 @@ paypalRouter.post('/create-order', async (req: Request, res: Response) => {
     }
 
     // Step 4: Low Risk (ALLOW) -> Proceed with PayPal Order Creation
-    dbService.saveTransaction(transaction, 'PENDING', undefined, paymentSource);
+    if (isMock) {
+      dbService.saveTransaction(transaction, 'FAILED', undefined, 'UNCONFIGURED');
+      return res.status(400).json({
+        error: 'PayPal Sandbox Credentials Missing',
+        message: 'PayPal Sandbox Client ID and Client Secret are not configured in your Render environment variables. Please add PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET in the Render Dashboard and redeploy.',
+        issue: 'CREDENTIALS_MISSING',
+      });
+    }
+
+    dbService.saveTransaction(transaction, 'PENDING', undefined, 'PAYPAL_SANDBOX');
     dbService.saveRiskAssessment(assessment);
 
     dbService.logAudit(
@@ -155,7 +164,7 @@ paypalRouter.post('/create-order', async (req: Request, res: Response) => {
         score: assessment.overallScore,
         tier: assessment.tier,
         gateAction: 'CHECKOUT_PERMITTED',
-        paymentSource,
+        paymentSource: 'PAYPAL_SANDBOX',
       },
       assessment.policyVersion
     );
@@ -183,9 +192,14 @@ paypalRouter.post('/create-order', async (req: Request, res: Response) => {
     );
 
     const approveLink = paypalOrder.links?.find((l: any) => l.rel === 'approve')?.href;
+    if (!approveLink) {
+      throw new PayPalError('PayPal Sandbox API did not return an approval link.', 502, 'NO_APPROVE_LINK');
+    }
 
-    // Update SQLite with PayPal order ID & payment source
-    dbService.saveTransaction(transaction, 'PENDING', paypalOrder.id, paymentSource);
+    console.log(`[PayPal Sandbox] Order created successfully: PayPal ID ${paypalOrder.id} for local order ${transaction.orderId}`);
+
+    // Update SQLite with genuine PayPal order ID & payment source
+    dbService.saveTransaction(transaction, 'PENDING', paypalOrder.id, 'PAYPAL_SANDBOX');
     dbService.logAudit(
       transaction.orderId,
       'ORDER_CREATED',
@@ -193,8 +207,8 @@ paypalRouter.post('/create-order', async (req: Request, res: Response) => {
       {
         paypalOrderId: paypalOrder.id,
         status: paypalOrder.status,
-        paymentSource,
-        hasApproveLink: Boolean(approveLink),
+        paymentSource: 'PAYPAL_SANDBOX',
+        hasApproveLink: true,
       },
       assessment.policyVersion
     );
@@ -205,7 +219,7 @@ paypalRouter.post('/create-order', async (req: Request, res: Response) => {
       assessment,
       status: paypalOrder.status,
       approveUrl: approveLink,
-      mode: paymentSource,
+      mode: 'PAYPAL_SANDBOX',
       links: paypalOrder.links,
     });
   } catch (error: any) {

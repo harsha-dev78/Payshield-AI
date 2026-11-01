@@ -6,7 +6,7 @@ import { TransactionData } from '../src/types/index.js';
 import { app } from '../src/server.js';
 import { paypalClient } from '../src/services/paypalClient.js';
 
-describe('PayShield AI - End-to-End System Integration Suite (Tests A to J)', () => {
+describe('PayShield AI - End-to-End System Integration Suite (Tests A to J)', { timeout: 35000 }, () => {
   const engine = new ExplainableRiskEngine();
   let server: http.Server;
   let baseUrl: string;
@@ -86,8 +86,11 @@ describe('PayShield AI - End-to-End System Integration Suite (Tests A to J)', ()
       body: JSON.stringify({ transaction: normalTx }),
     });
 
-    expect(res.status).toBe(200);
     const body = await res.json();
+    if (res.status !== 200) {
+      console.error('TEST A create-order failed:', body);
+    }
+    expect(res.status).toBe(200);
 
     expect(body.paypalOrderId).toBeDefined();
     expect(body.localOrderId).toBe(normalTx.orderId);
@@ -346,7 +349,7 @@ describe('PayShield AI - End-to-End System Integration Suite (Tests A to J)', ()
 
     const logs = dbService.getAuditLogs(cancelOrderId);
     expect(logs.some((l) => l.action === 'BUYER_CANCELLED')).toBe(true);
-  });
+  }, 20000);
 
   // ============================================================================
   // TEST E — Payment capture failure:
@@ -465,7 +468,7 @@ describe('PayShield AI - End-to-End System Integration Suite (Tests A to J)', ()
 
     const check = dbService.getTransaction(dupOrderId);
     expect(check?.paymentStatus).toBe('CAPTURED');
-  });
+  }, 20000);
 
   // ============================================================================
   // TEST G — Manipulated requests:
@@ -596,7 +599,7 @@ describe('PayShield AI - End-to-End System Integration Suite (Tests A to J)', ()
       // Backend must ignore forged client status and maintain PENDING
       expect(check?.paymentStatus).toBe('PENDING');
       expect(check?.paypalCaptureId).toBeUndefined();
-    });
+    }, 20000);
 
     it('G5: rejects unauthorized capture requests on non-existent or blank order IDs', async () => {
       const res = await fetch(`${baseUrl}/api/paypal/capture-order`, {

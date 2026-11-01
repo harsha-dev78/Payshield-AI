@@ -56,18 +56,18 @@ export const SandboxCheckout: React.FC<SandboxCheckoutProps> = ({ onOrderComplet
   const [currentOrderId, setCurrentOrderId] = useState<string | null>(null);
   const [captureId, setCaptureId] = useState<string | null>(null);
   const [approveUrl, setApproveUrl] = useState<string | null>(null);
-  const [gatewayMode, setGatewayMode] = useState<'PAYPAL_SANDBOX' | 'MOCK_SIMULATOR'>('MOCK_SIMULATOR');
+  const [gatewayMode, setGatewayMode] = useState<'PAYPAL_SANDBOX' | 'UNCONFIGURED'>('PAYPAL_SANDBOX');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [hasOpenedApprovalWindow, setHasOpenedApprovalWindow] = useState(false);
 
-  // Fetch gateway status (Sandbox vs Mock) on mount
+  // Fetch gateway status on mount
   useEffect(() => {
     api.getPayPalStatus()
       .then((status) => {
-        setGatewayMode(status.mode === 'PAYPAL_SANDBOX' ? 'PAYPAL_SANDBOX' : 'MOCK_SIMULATOR');
+        setGatewayMode(status.clientIdConfigured || status.mode === 'PAYPAL_SANDBOX' ? 'PAYPAL_SANDBOX' : 'UNCONFIGURED');
       })
       .catch(() => {
-        setGatewayMode('MOCK_SIMULATOR');
+        setGatewayMode('PAYPAL_SANDBOX');
       });
   }, []);
 
@@ -259,7 +259,7 @@ export const SandboxCheckout: React.FC<SandboxCheckoutProps> = ({ onOrderComplet
       setAssessmentResult(res.assessment);
       setPaypalOrderId(res.paypalOrderId);
       setApproveUrl(res.approveUrl || null);
-      if (res.mode) setGatewayMode(res.mode);
+      if (res.mode === 'PAYPAL_SANDBOX') setGatewayMode('PAYPAL_SANDBOX');
       setStep('PAYPAL_READY');
     } catch (err: any) {
       if (err.assessment) {
@@ -343,8 +343,8 @@ export const SandboxCheckout: React.FC<SandboxCheckoutProps> = ({ onOrderComplet
                 <span>Genuine PayPal Sandbox</span>
               </span>
             ) : (
-              <span className="text-[11px] font-semibold font-mono px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center gap-1">
-                <span>Mock Simulator Mode</span>
+              <span className="text-[11px] font-semibold font-mono px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-300 flex items-center gap-1">
+                <span>PayPal Credentials Unconfigured</span>
               </span>
             )}
           </div>
@@ -567,7 +567,7 @@ export const SandboxCheckout: React.FC<SandboxCheckoutProps> = ({ onOrderComplet
                   <div className="p-2.5 rounded-xl bg-blue-50/60 border border-blue-200 text-[11px] text-blue-800 space-y-1 leading-relaxed">
                     <div className="font-bold flex items-center gap-1 text-blue-900">
                       <Info className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                      <span>{gatewayMode === 'PAYPAL_SANDBOX' ? 'Genuine PayPal Sandbox Approval' : 'Sandbox Checkout Simulator'}</span>
+                      <span>Genuine PayPal Sandbox Approval</span>
                     </div>
                     <p className="text-slate-600 text-[10px]">
                       1. Click &quot;Open PayPal Sandbox Checkout Window&quot; below to log into PayPal Sandbox with your personal test account and approve the payment.
@@ -615,17 +615,6 @@ export const SandboxCheckout: React.FC<SandboxCheckoutProps> = ({ onOrderComplet
                     <CheckCircle2 className="w-3.5 h-3.5" />
                     <span>{isProcessing ? 'Capturing...' : 'Verify & Capture Payment'}</span>
                   </button>
-
-                  {/* Offline test shortcut if mock mode */}
-                  {gatewayMode === 'MOCK_SIMULATOR' && (
-                    <button
-                      onClick={handleCapture}
-                      disabled={isProcessing}
-                      className="w-full py-1.5 px-3 rounded-lg text-indigo-600 hover:bg-indigo-50 border border-indigo-200 text-[11px] font-medium transition-colors cursor-pointer"
-                    >
-                      Offline Test: Simulate Immediate Buyer Approval &amp; Capture
-                    </button>
-                  )}
 
                   {/* Cancel Action */}
                   <button

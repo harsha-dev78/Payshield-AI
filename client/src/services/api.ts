@@ -76,7 +76,7 @@ export const api = {
     assessment: RiskAssessment;
     status: string;
     approveUrl?: string;
-    mode: 'PAYPAL_SANDBOX' | 'MOCK_SIMULATOR';
+    mode: 'PAYPAL_SANDBOX' | 'UNCONFIGURED';
     links?: { href: string; rel: string; method: string }[];
   }> {
     const res = await fetch(`${API_BASE}/paypal/create-order`, {
@@ -135,7 +135,9 @@ export const api = {
   },
 
   async getPayPalStatus(): Promise<{
-    mode: 'MOCK_SIMULATOR' | 'PAYPAL_SANDBOX';
+    status?: string;
+    mode: 'PAYPAL_SANDBOX' | 'UNCONFIGURED' | 'MOCK_SIMULATOR';
+    authenticated?: boolean;
     apiBase: string;
     clientIdConfigured: boolean;
     clientSecretConfigured: boolean;

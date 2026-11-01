@@ -28,6 +28,18 @@ export class PayPalError extends Error {
   }
 }
 
+async function fetchWithRetry(url: string, options: RequestInit, retries = 2, delayMs = 500): Promise<Response> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await fetch(url, options);
+    } catch (err: any) {
+      if (attempt === retries) throw err;
+      await new Promise((r) => setTimeout(r, delayMs * (attempt + 1)));
+    }
+  }
+  return fetch(url, options);
+}
+
 export class PayPalClient {
   private cachedToken: string | null = null;
   private tokenExpiresAt = 0;
@@ -73,14 +85,15 @@ export class PayPalClient {
     }
 
     if (this.isMockConfigured()) {
-      // Mock Sandbox token for zero-dependency offline hackathon demonstration
-      this.cachedToken = `mock_sandbox_access_token_${Date.now()}`;
-      this.tokenExpiresAt = Date.now() + 3600 * 1000;
-      return this.cachedToken;
+      throw new PayPalError(
+        'PayPal Sandbox credentials are not configured or are invalid. Please configure PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET in your server environment variables.',
+        401,
+        'CREDENTIALS_MISSING'
+      );
     }
 
     const auth = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64');
-    const response = await fetch(`${this.apiBase}/v1/oauth2/token`, {
+    const response = await fetchWithRetry(`${this.apiBase}/v1/oauth2/token`, {
       method: 'POST',
       headers: {
         Authorization: `Basic ${auth}`,
@@ -111,16 +124,17 @@ export class PayPalClient {
 
   public async verifyAuthentication(): Promise<{
     authenticated: boolean;
-    mode: 'PAYPAL_SANDBOX' | 'MOCK_SIMULATOR';
+    mode: 'PAYPAL_SANDBOX' | 'UNCONFIGURED';
     apiBase: string;
     authLatencyMs?: number;
     error?: string;
   }> {
     if (this.isMockConfigured()) {
       return {
-        authenticated: true,
-        mode: 'MOCK_SIMULATOR',
+        authenticated: false,
+        mode: 'UNCONFIGURED',
         apiBase: this.apiBase,
+        error: 'PayPal Client ID and Secret are missing or set to placeholder values in environment variables.',
       };
     }
 
@@ -153,23 +167,11 @@ export class PayPalClient {
     cancelUrl?: string
   ): Promise<{ id: string; status: string; links: any[] }> {
     if (this.isMockConfigured()) {
-      const mockOrderId = `PAYPAL-SANDBOX-${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
-      return {
-        id: mockOrderId,
-        status: 'CREATED',
-        links: [
-          {
-            href: `https://www.sandbox.paypal.com/checkoutnow?token=${mockOrderId}`,
-            rel: 'approve',
-            method: 'GET',
-          },
-          {
-            href: `${this.apiBase}/v2/checkout/orders/${mockOrderId}`,
-            rel: 'self',
-            method: 'GET',
-          },
-        ],
-      };
+      throw new PayPalError(
+        'Cannot create PayPal order: PayPal Sandbox credentials are not configured. Please set PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET on Render.',
+        401,
+        'CREDENTIALS_MISSING'
+      );
     }
 
     let token = await this.getAccessToken();
@@ -194,7 +196,7 @@ export class PayPalClient {
       },
     };
 
-    let response = await fetch(`${this.apiBase}/v2/checkout/orders`, {
+    let response = await fetchWithRetry(`${this.apiBase}/v2/checkout/orders`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -203,9 +205,9 @@ export class PayPalClient {
       body: JSON.stringify(payload),
     });
 
-    if (response.status === 401 && !this.isMockConfigured()) {
+    if (response.status === 401) {
       token = await this.getAccessToken(true);
-      response = await fetch(`${this.apiBase}/v2/checkout/orders`, {
+      response = await fetchWithRetry(`${this.apiBase}/v2/checkout/orders`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -233,17 +235,8 @@ export class PayPalClient {
   }
 
   public async getOrder(paypalOrderId: string): Promise<PayPalOrderDetails> {
-    if (this.isMockConfigured() || paypalOrderId.startsWith('PAYPAL-SANDBOX-') || paypalOrderId.startsWith('PAYPAL-ORD-')) {
-      return {
-        id: paypalOrderId,
-        status: 'APPROVED',
-        intent: 'CAPTURE',
-        links: [],
-      };
-    }
-
     const token = await this.getAccessToken();
-    const response = await fetch(`${this.apiBase}/v2/checkout/orders/${paypalOrderId}`, {
+    const response = await fetchWithRetry(`${this.apiBase}/v2/checkout/orders/${paypalOrderId}`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -298,34 +291,8 @@ export class PayPalClient {
       );
     }
 
-    if (this.isMockConfigured() || paypalOrderId.startsWith('PAYPAL-SANDBOX-') || paypalOrderId.startsWith('PAYPAL-ORD-')) {
-      const mockCaptureId = `CAP-${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
-      return {
-        id: paypalOrderId,
-        status: 'COMPLETED',
-        captureId: mockCaptureId,
-        raw: {
-          id: paypalOrderId,
-          status: 'COMPLETED',
-          purchase_units: [
-            {
-              payments: {
-                captures: [
-                  {
-                    id: mockCaptureId,
-                    status: 'COMPLETED',
-                    amount: { currency_code: 'USD', value: '120.00' },
-                  },
-                ],
-              },
-            },
-          ],
-        },
-      };
-    }
-
     let token = await this.getAccessToken();
-    let response = await fetch(`${this.apiBase}/v2/checkout/orders/${paypalOrderId}/capture`, {
+    let response = await fetchWithRetry(`${this.apiBase}/v2/checkout/orders/${paypalOrderId}/capture`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -334,9 +301,9 @@ export class PayPalClient {
       body: '{}',
     });
 
-    if (response.status === 401 && !this.isMockConfigured()) {
+    if (response.status === 401) {
       token = await this.getAccessToken(true);
-      response = await fetch(`${this.apiBase}/v2/checkout/orders/${paypalOrderId}/capture`, {
+      response = await fetchWithRetry(`${this.apiBase}/v2/checkout/orders/${paypalOrderId}/capture`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
