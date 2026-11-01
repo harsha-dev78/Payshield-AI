@@ -1,4 +1,4 @@
-import { CONFIG } from '../config.js';
+import { CONFIG, resolvePayPalCredentials, type PayPalCredentialsResolution } from '../config.js';
 
 export interface PayPalTokenResponse {
   access_token: string;
@@ -56,27 +56,13 @@ export class PayPalClient {
     return CONFIG.PAYPAL.API_BASE || 'https://api-m.sandbox.paypal.com';
   }
 
+  public getCredentialsResolution(): PayPalCredentialsResolution {
+    return resolvePayPalCredentials();
+  }
+
   public isMockConfigured(): boolean {
-    const id = this.clientId.trim();
-    const secret = this.clientSecret.trim();
-
-    const mockPlaceholders = new Set([
-      '',
-      'your_sandbox_client_id_here',
-      'your_paypal_sandbox_client_id_here',
-      'sandbox_mock_client_id',
-      'your_client_id',
-    ]);
-
-    const mockSecretPlaceholders = new Set([
-      '',
-      'your_sandbox_client_secret_here',
-      'your_paypal_sandbox_client_secret_here',
-      'sandbox_mock_client_secret',
-      'your_client_secret',
-    ]);
-
-    return mockPlaceholders.has(id) || mockSecretPlaceholders.has(secret);
+    const creds = this.getCredentialsResolution();
+    return !creds.clientIdConfigured || !creds.clientSecretConfigured;
   }
 
   public async getAccessToken(forceRefresh = false): Promise<string> {
@@ -84,9 +70,10 @@ export class PayPalClient {
       return this.cachedToken;
     }
 
-    if (this.isMockConfigured()) {
+    const creds = this.getCredentialsResolution();
+    if (!creds.clientIdConfigured || !creds.clientSecretConfigured) {
       throw new PayPalError(
-        'PayPal Sandbox credentials are not configured or are invalid. Please configure PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET in your server environment variables.',
+        `PayPal Sandbox credentials are not configured or are invalid. Client ID: ${creds.clientIdConfigured ? 'present' : 'missing'}, Secret: ${creds.clientSecretConfigured ? 'present' : 'missing'}. Please configure PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET in your server environment variables.`,
         401,
         'CREDENTIALS_MISSING'
       );
@@ -126,15 +113,36 @@ export class PayPalClient {
     authenticated: boolean;
     mode: 'PAYPAL_SANDBOX' | 'UNCONFIGURED';
     apiBase: string;
+    clientIdConfigured: boolean;
+    clientSecretConfigured: boolean;
+    clientIdKey: string | null;
+    clientSecretKey: string | null;
+    detectedPayPalKeys: string[];
     authLatencyMs?: number;
     error?: string;
+    reason: string;
   }> {
-    if (this.isMockConfigured()) {
+    const creds = this.getCredentialsResolution();
+
+    if (!creds.clientIdConfigured || !creds.clientSecretConfigured) {
+      let reason = 'BOTH_CLIENT_ID_AND_SECRET_MISSING';
+      if (creds.clientIdConfigured && !creds.clientSecretConfigured) {
+        reason = 'CLIENT_SECRET_MISSING';
+      } else if (!creds.clientIdConfigured && creds.clientSecretConfigured) {
+        reason = 'CLIENT_ID_MISSING';
+      }
+
       return {
         authenticated: false,
         mode: 'UNCONFIGURED',
         apiBase: this.apiBase,
-        error: 'PayPal Client ID and Secret are missing or set to placeholder values in environment variables.',
+        clientIdConfigured: creds.clientIdConfigured,
+        clientSecretConfigured: creds.clientSecretConfigured,
+        clientIdKey: creds.clientIdKey,
+        clientSecretKey: creds.clientSecretKey,
+        detectedPayPalKeys: creds.detectedPayPalKeys,
+        reason,
+        error: `PayPal Sandbox credentials are incomplete (${reason}). Detected env keys: [${creds.detectedPayPalKeys.join(', ')}].`,
       };
     }
 
@@ -145,15 +153,27 @@ export class PayPalClient {
         authenticated: Boolean(token && token.length > 0),
         mode: 'PAYPAL_SANDBOX',
         apiBase: this.apiBase,
+        clientIdConfigured: true,
+        clientSecretConfigured: true,
+        clientIdKey: creds.clientIdKey,
+        clientSecretKey: creds.clientSecretKey,
+        detectedPayPalKeys: creds.detectedPayPalKeys,
         authLatencyMs: Date.now() - start,
+        reason: 'AUTHENTICATED',
       };
     } catch (err: any) {
       return {
         authenticated: false,
         mode: 'PAYPAL_SANDBOX',
         apiBase: this.apiBase,
+        clientIdConfigured: true,
+        clientSecretConfigured: true,
+        clientIdKey: creds.clientIdKey,
+        clientSecretKey: creds.clientSecretKey,
+        detectedPayPalKeys: creds.detectedPayPalKeys,
         error: err.issue || err.message || 'Authentication failed',
         authLatencyMs: Date.now() - start,
+        reason: 'OAUTH_AUTHENTICATION_FAILED',
       };
     }
   }

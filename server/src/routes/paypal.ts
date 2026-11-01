@@ -8,29 +8,37 @@ import { validateTransactionIntegrity } from '../specs/transactionSchema.js';
 
 export const paypalRouter = Router();
 
-// GET /api/paypal/status & GET /api/paypal/health - Secure PayPal configuration & live authentication health check
+// GET /api/paypal/status, /health, /credentials-status - Secure PayPal configuration & live authentication health check
 const handlePayPalHealthCheck = async (req: Request, res: Response) => {
-  const isMock = paypalClient.isMockConfigured();
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+
   const authCheck = await paypalClient.verifyAuthentication();
 
   res.json({
     status: authCheck.authenticated ? 'healthy' : 'degraded',
-    mode: isMock ? 'UNCONFIGURED' : 'PAYPAL_SANDBOX',
+    mode: authCheck.mode,
     apiBase: CONFIG.PAYPAL.API_BASE,
     authenticated: authCheck.authenticated,
     authLatencyMs: authCheck.authLatencyMs,
     authError: authCheck.error,
-    clientIdConfigured: !isMock,
-    clientSecretConfigured: !isMock,
+    clientIdConfigured: authCheck.clientIdConfigured,
+    clientSecretConfigured: authCheck.clientSecretConfigured,
+    clientIdKey: authCheck.clientIdKey,
+    clientSecretKey: authCheck.clientSecretKey,
+    detectedPayPalKeys: authCheck.detectedPayPalKeys,
     environment: CONFIG.PAYPAL.ENVIRONMENT,
     riskEngineActive: true,
     policyVersion: CONFIG.RISK.POLICY_VERSION,
+    reason: authCheck.reason,
     verifiedAt: new Date().toISOString(),
   });
 };
 
 paypalRouter.get('/status', handlePayPalHealthCheck);
 paypalRouter.get('/health', handlePayPalHealthCheck);
+paypalRouter.get('/credentials-status', handlePayPalHealthCheck);
 
 // POST /api/paypal/create-order - Enforces risk gate before PayPal order creation
 paypalRouter.post('/create-order', async (req: Request, res: Response) => {
@@ -144,12 +152,37 @@ paypalRouter.post('/create-order', async (req: Request, res: Response) => {
     }
 
     // Step 4: Low Risk (ALLOW) -> Proceed with PayPal Order Creation
-    if (isMock) {
+    const creds = paypalClient.getCredentialsResolution();
+    if (!creds.clientIdConfigured || !creds.clientSecretConfigured) {
+      let specificMessage = '';
+      if (!creds.clientIdConfigured && !creds.clientSecretConfigured) {
+        specificMessage = 'Neither PayPal Client ID nor Client Secret was detected in Render environment variables. Expected: PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET.';
+      } else if (!creds.clientIdConfigured) {
+        specificMessage = `PayPal Client ID is missing or placeholder, but Client Secret was found (via ${creds.clientSecretKey}). Please add PAYPAL_CLIENT_ID in Render.`;
+      } else {
+        specificMessage = `PayPal Client ID was found (via ${creds.clientIdKey}), but PayPal Client Secret is missing or placeholder. Please add PAYPAL_CLIENT_SECRET in Render.`;
+      }
+
+      console.warn(`[PayPal Credentials Diagnostic] Rejected order creation for ${transaction.orderId}:`, {
+        clientIdConfigured: creds.clientIdConfigured,
+        clientSecretConfigured: creds.clientSecretConfigured,
+        clientIdKey: creds.clientIdKey,
+        clientSecretKey: creds.clientSecretKey,
+        detectedKeys: creds.detectedPayPalKeys,
+      });
+
       dbService.saveTransaction(transaction, 'FAILED', undefined, 'UNCONFIGURED');
       return res.status(400).json({
         error: 'PayPal Sandbox Credentials Missing',
-        message: 'PayPal Sandbox Client ID and Client Secret are not configured in your Render environment variables. Please add PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET in the Render Dashboard and redeploy.',
+        message: specificMessage,
         issue: 'CREDENTIALS_MISSING',
+        diagnostic: {
+          clientIdConfigured: creds.clientIdConfigured,
+          clientSecretConfigured: creds.clientSecretConfigured,
+          clientIdKey: creds.clientIdKey,
+          clientSecretKey: creds.clientSecretKey,
+          detectedPayPalKeys: creds.detectedPayPalKeys,
+        },
       });
     }
 

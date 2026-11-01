@@ -76,11 +76,7 @@ const HOST = '0.0.0.0';
 
 if (CONFIG.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'test') {
   app.listen(PORT, HOST, () => {
-    const rawId = CONFIG.PAYPAL.CLIENT_ID || '';
-    const maskedId = rawId.length > 8
-      ? `${rawId.substring(0, 4)}...${rawId.substring(rawId.length - 4)}`
-      : (rawId ? '***' : 'NOT CONFIGURED');
-    const isSecretSet = Boolean(CONFIG.PAYPAL.CLIENT_SECRET && CONFIG.PAYPAL.CLIENT_SECRET.length > 5);
+    const creds = paypalClient.getCredentialsResolution();
 
     console.log(`=======================================================`);
     console.log(`🛡️  PayShield AI Server running on port ${PORT}`);
@@ -88,8 +84,9 @@ if (CONFIG.NODE_ENV !== 'test' && process.env.NODE_ENV !== 'test') {
     console.log(`⚖️  Risk Policy: ${CONFIG.RISK.POLICY_VERSION}`);
     console.log(`💳  PayPal Environment: ${CONFIG.PAYPAL.ENVIRONMENT}`);
     console.log(`💳  PayPal API Base: ${CONFIG.PAYPAL.API_BASE}`);
-    console.log(`💳  PayPal Client ID: ${maskedId}`);
-    console.log(`💳  PayPal Secret Set: ${isSecretSet ? 'YES' : 'NO'}`);
+    console.log(`💳  PayPal Client ID Configured: ${creds.clientIdConfigured ? 'true' : 'false'} (Source: ${creds.clientIdKey || 'NONE'})`);
+    console.log(`💳  PayPal Secret Configured: ${creds.clientSecretConfigured ? 'true' : 'false'} (Source: ${creds.clientSecretKey || 'NONE'})`);
+    console.log(`💳  Detected Environment Keys: ${JSON.stringify(creds.detectedPayPalKeys)}`);
     if (clientDistPath) {
       console.log(`📦  Serving Static UI from: ${clientDistPath}`);
     }

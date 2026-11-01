@@ -138,14 +138,26 @@ export const api = {
     status?: string;
     mode: 'PAYPAL_SANDBOX' | 'UNCONFIGURED' | 'MOCK_SIMULATOR';
     authenticated?: boolean;
+    authLatencyMs?: number;
+    authError?: string;
     apiBase: string;
     clientIdConfigured: boolean;
     clientSecretConfigured: boolean;
+    clientIdKey?: string | null;
+    clientSecretKey?: string | null;
+    detectedPayPalKeys?: string[];
+    reason?: string;
     environment: string;
     riskEngineActive: boolean;
     policyVersion: string;
   }> {
-    const res = await fetch(`${API_BASE}/paypal/status`);
+    const res = await fetch(`${API_BASE}/paypal/credentials-status?_t=${Date.now()}`, {
+      cache: 'no-store',
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        Pragma: 'no-cache',
+      },
+    });
     if (!res.ok) throw new Error('Failed to fetch PayPal status');
     return res.json();
   },

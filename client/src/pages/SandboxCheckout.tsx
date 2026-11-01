@@ -58,6 +58,13 @@ export const SandboxCheckout: React.FC<SandboxCheckoutProps> = ({ onOrderComplet
   const [approveUrl, setApproveUrl] = useState<string | null>(null);
   const [gatewayMode, setGatewayMode] = useState<'PAYPAL_SANDBOX' | 'UNCONFIGURED'>('PAYPAL_SANDBOX');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [errorDiagnostic, setErrorDiagnostic] = useState<{
+    clientIdConfigured?: boolean;
+    clientSecretConfigured?: boolean;
+    clientIdKey?: string | null;
+    clientSecretKey?: string | null;
+    detectedPayPalKeys?: string[];
+  } | null>(null);
   const [hasOpenedApprovalWindow, setHasOpenedApprovalWindow] = useState(false);
 
   // Fetch gateway status on mount
@@ -274,6 +281,11 @@ export const SandboxCheckout: React.FC<SandboxCheckoutProps> = ({ onOrderComplet
       } else {
         const detail = err.issue ? ` (${err.issue})` : '';
         setErrorMsg(`${err.message || 'PayPal order creation failed.'}${detail}`);
+        if (err.data?.diagnostic) {
+          setErrorDiagnostic(err.data.diagnostic);
+        } else {
+          setErrorDiagnostic(null);
+        }
         setStep('IDLE');
       }
     } finally {
@@ -324,6 +336,7 @@ export const SandboxCheckout: React.FC<SandboxCheckoutProps> = ({ onOrderComplet
     setCaptureId(null);
     setApproveUrl(null);
     setErrorMsg(null);
+    setErrorDiagnostic(null);
     setHasOpenedApprovalWindow(false);
   };
 
@@ -365,8 +378,16 @@ export const SandboxCheckout: React.FC<SandboxCheckoutProps> = ({ onOrderComplet
       </div>
 
       {errorMsg && (
-        <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-xs font-medium text-rose-800 shadow-xs">
-          <strong>Error: </strong> {errorMsg}
+        <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-800 shadow-xs space-y-2">
+          <div><strong>Error: </strong> {errorMsg}</div>
+          {errorDiagnostic && (
+            <div className="p-3 rounded-xl bg-white/80 border border-rose-200/80 font-mono text-[11px] space-y-1 text-slate-700">
+              <div className="font-bold text-rose-900 font-sans">Render Environment Diagnostics:</div>
+              <div>• PayPal Client ID: {errorDiagnostic.clientIdConfigured ? `Found (via ${errorDiagnostic.clientIdKey})` : 'MISSING'}</div>
+              <div>• PayPal Client Secret: {errorDiagnostic.clientSecretConfigured ? `Found (via ${errorDiagnostic.clientSecretKey})` : 'MISSING'}</div>
+              <div>• Detected Keys: {errorDiagnostic.detectedPayPalKeys && errorDiagnostic.detectedPayPalKeys.length > 0 ? `[${errorDiagnostic.detectedPayPalKeys.join(', ')}]` : 'None'}</div>
+            </div>
+          )}
         </div>
       )}
 
