@@ -37,7 +37,7 @@ app.use('/api/paypal', paypalRouter);
 app.use('/api/audit', auditRouter);
 
 // System Health & Render Health Check (respond at /health, /api/health)
-app.get(['/health', '/api/health'], (req, res) => {
+const healthCheckHandler = (req: express.Request, res: express.Response) => {
   res.status(200).json({
     status: 'healthy',
     name: 'PayShield AI Engine',
@@ -47,12 +47,13 @@ app.get(['/health', '/api/health'], (req, res) => {
     environment: CONFIG.NODE_ENV,
     timestamp: new Date().toISOString(),
   });
-});
+};
 
-// Fast HEAD response for edge balancers and health checkers
-app.head(['/', '/health', '/api/health'], (req, res) => {
-  res.status(200).end();
-});
+app.get('/health', healthCheckHandler);
+app.get('/api/health', healthCheckHandler);
+app.head('/health', (req, res) => res.status(200).end());
+app.head('/api/health', (req, res) => res.status(200).end());
+app.head('/', (req, res) => res.status(200).end());
 
 // Serve frontend static assets in production or when client/dist exists
 const clientDistCandidates = [

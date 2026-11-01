@@ -6,19 +6,7 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   build: {
-    chunkSizeWarningLimit: 1200,
-    rollupOptions: {
-      output: {
-        manualChunks(id: string) {
-          if (id.includes('node_modules/ag-grid-community') || id.includes('node_modules/ag-grid-react')) {
-            return 'aggrid';
-          }
-          if (id.includes('node_modules/lucide-react')) {
-            return 'icons';
-          }
-        },
-      },
-    },
+    chunkSizeWarningLimit: 2000,
   },
   server: {
     port: 5173,

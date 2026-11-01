@@ -7,7 +7,7 @@
 services:
   # Unified Full-Stack Web Service: Express + React 19 + SQLite Risk Engine
   - type: web
-    name: payshield-ai
+    name: payshield-ai-ctkr
     runtime: node
     plan: free
     buildCommand: npm install --include=dev && npm run build
@@ -16,10 +16,6 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      - key: NODE_VERSION
-        value: 20.18.0
-      - key: NODE_OPTIONS
-        value: "--max-old-space-size=460"
       - key: PORT
         value: 10000
       - key: PAYPAL_API_BASE
